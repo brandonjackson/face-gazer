@@ -704,8 +704,8 @@ def die(msg):
 
 # THESE INDICES CAN CHANGE AT A MOMENTS NOTICE
 # use a for loop to check for correct camera
-dev1 = "1";
-dev2 = "0";
+dev1 = "0";
+dev2 = "1";
 
 # get user to define correct camera devices for eye and world cameras
 while dev1 != "":
@@ -731,10 +731,10 @@ while dev2 != "":
   cv2.imshow('World Camera',scaledWorld);
   dev2 = raw_input("Provide a new device number for the world camera" + 
 	"or hit enter if the correct device has already been selected\n");
-  
 
 cv2.destroyWindow('Eye Camera');
 cv2.destroyWindow('World Camera');
+
   
 # [used in gray projection]
 horizontal_sum = 0;
@@ -750,13 +750,22 @@ while True:
 	cv2.imshow('TheWorld',scaledWorld);
 
 	frameEyeRetVal, frameEye = cameraEye.read();
-
 	# eye camera returns frames that are 800px high by 1280px wide
 	scaledFrame = cv2.resize(frameEye,None,fx=0.5,fy=0.5);
+	
+	# experimenting with RGB image in order to crop eye more dynamically
+	B, G, R = cv2.split(scaledFrame);
+	cv2.imshow('BEye', B);
+	cv2.imshow('GEye', G);
+	cv2.imshow('REye', R);
+	
+	scaledFrame = cv2.cvtColor(scaledFrame,cv.CV_BGR2GRAY);
+	cv2.imshow('OrigEye',scaledFrame);
 
 	# remove rightmost 140px via cropping
 	scaledFrame = scaledFrame[75:325, 50:450];
-	scaledFrame = cv2.cvtColor(scaledFrame,cv.CV_BGR2GRAY);
+	cv2.imshow('CroppedEdye',scaledFrame);
+	# scaledFrame = cv2.cvtColor(scaledFrame,cv.CV_BGR2GRAY);
 
 	threshed_retval,threshed = cv2.threshold(scaledFrame, 120, maxval=255, type=cv.CV_THRESH_BINARY);
 	cv2.imshow('Thresholded',threshed);
