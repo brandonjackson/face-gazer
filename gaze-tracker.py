@@ -20,10 +20,10 @@ import cv2.cv as cv
 import Image
 import ImageOps
 import ImageEnhance
-from scipy.cluster import vq
-import wx
-import matplotlib
-import matplotlib.pyplot as plt
+#from scipy.cluster import vq
+#import wx
+#import matplotlib
+#import matplotlib.pyplot as plt
 
  
 # Constants
@@ -697,11 +697,45 @@ def main():
 		# display.renderScene(frames['display'],model,rects);
 		# display.renderEyes(frames['color'],model);
 
+def die(msg):
+	# print error message and exit
+	print "gaze-tracker: " + msg;
+	exit(1);
 
 # THESE INDICES CAN CHANGE AT A MOMENTS NOTICE
-cameraEye = cv2.VideoCapture(2);
-cameraWorld = cv2.VideoCapture(1);
+# use a for loop to check for correct camera
+dev1 = "1";
+dev2 = "0";
 
+# get user to define correct camera devices for eye and world cameras
+while dev1 != "":
+  d1 = int(dev1);
+  cameraEye = cv2.VideoCapture(d1);
+  if not cameraEye.isOpened():
+    die("eye camera failed on device " + dev1);
+  frameEyeRetVal, frameEye = cameraEye.read();
+  scaledFrame = cv2.resize(frameEye,None,fx=0.5,fy=0.5);
+  cv2.imshow('Eye Camera',scaledFrame);
+  dev1 = raw_input("Provide a new device number for the eye camera " + 
+	"or hit enter if the correct device has already been selected\n");
+
+dev2 = str((d1+1) % 2);
+
+while dev2 != "":
+  d2 = int(dev2);
+  cameraWorld = cv2.VideoCapture(int(d2));
+  if not cameraWorld.isOpened():
+    die("world camera failed on device " + dev2);
+  frameWorldRetVal, frameWorld = cameraWorld.read();
+  scaledWorld = cv2.resize(frameWorld,None,fx=0.5,fy=0.5);
+  cv2.imshow('World Camera',scaledWorld);
+  dev2 = raw_input("Provide a new device number for the world camera" + 
+	"or hit enter if the correct device has already been selected\n");
+  
+
+cv2.destroyWindow('Eye Camera');
+cv2.destroyWindow('World Camera');
+  
 # [used in gray projection]
 horizontal_sum = 0;
 vertical_sum = 0;
