@@ -1,0 +1,19 @@
+Plan
+
+1: finish reading through all of Brandon's code
+2: Look through some functions like template matching and thresholding
+3: Look at good features to track
+4: Look at methods for finding pupil center in other papers 
+5: Work on accurately detecting pupil center and fitting an elipse to it
+(do this before trying to speed things up because you will discover new
+techniques on the way as well as learn what effective methods may be). Use
+hacks if you need to because you can go back and make it more dynamic later.
+5: Look at use of perkinje images in others' work
+6: Implement using perkinje images or at least be able to track them if you
+can't make use of them yet
+7: Look at calibration schemes in others' work
+8: get a calibration scheme working
+9: speed it up
+10: make it as autonomous as possible
+
+ 

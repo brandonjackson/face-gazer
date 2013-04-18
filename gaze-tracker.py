@@ -754,30 +754,34 @@ while True:
 	scaledFrame = cv2.resize(frameEye,None,fx=0.5,fy=0.5);
 	
 	# experimenting with RGB image in order to crop eye more dynamically
-	B, G, R = cv2.split(scaledFrame);
-	cv2.imshow('BEye', B);
-	cv2.imshow('GEye', G);
-	cv2.imshow('REye', R);
+	# ideas: use blue image to find glasses to crop image quickly
+	# then use blue image to find pupil and crop box around it
+	# B, G, R = cv2.split(scaledFrame);
+	# cv2.imshow('BEye', B);
+	# cv2.imshow('GEye', G);
+	# cv2.imshow('REye', R);
 	
 	scaledFrame = cv2.cvtColor(scaledFrame,cv.CV_BGR2GRAY);
 	cv2.imshow('OrigEye',scaledFrame);
 
 	# remove rightmost 140px via cropping
-	scaledFrame = scaledFrame[75:325, 50:450];
+	scaledFrame = scaledFrame[125:375, 50:450];
 	cv2.imshow('CroppedEdye',scaledFrame);
-	# scaledFrame = cv2.cvtColor(scaledFrame,cv.CV_BGR2GRAY);
 
-	threshed_retval,threshed = cv2.threshold(scaledFrame, 120, maxval=255, type=cv.CV_THRESH_BINARY);
+	threshed_retval,threshed = cv2.threshold(scaledFrame, 120, 
+		maxval=255, type=cv.CV_THRESH_BINARY);
 	cv2.imshow('Thresholded',threshed);
 
 	# Blur, then apply canny edge detection
 	blurred = cv2.GaussianBlur(threshed,(7,7),1);
+	# note: we never use the blurred image
 	edges = cv2.Canny(threshed,15,30);
 	cv2.imshow("CannyEdgeDetector",edges);
 
 
 	edgePoints = numpy.argwhere(edges>0);
 
+	# needs to be more robust
 	if edgePoints.shape[0] > 6:
 		ellipseBox = cv2.fitEllipse(edgePoints);
 		eBox = tuple([tuple([ellipseBox[0][1],ellipseBox[0][0]]),tuple([ellipseBox[1][1],ellipseBox[1][0]]),ellipseBox[2]*-1]);
@@ -787,13 +791,21 @@ while True:
 		cv2.imshow("ellipseFit",ellipseFrame);
 	
 
+	# check these values are good bounds
 	irisMinRadius = int(round(blurred.shape[1]*0.03));
 	irisMaxRadius = int(round(blurred.shape[1]*0.1));
+	lineFrame = scaledFrame.copy();
+	lineFrame = cv2.cvtColor(lineFrame,cv.CV_GRAY2BGR);
+	cv2.line(lineFrame,tuple([200,50]), tuple([200+irisMinRadius, 50]), (200, 100, 255));
+	cv2.line(lineFrame,tuple([200,75]), tuple([200+irisMaxRadius, 75]), (100, 255, 0));
+	cv2.imshow("lines",lineFrame);
+	
 	# TODO update this based on previously-found iris radii
 	minDistance = irisMaxRadius*2;
 	circles = cv2.HoughCircles(threshed, cv.CV_HOUGH_GRADIENT, 2, minDistance, param1=30, param2=10,minRadius=irisMinRadius,maxRadius=irisMaxRadius);
 	
 	pupilFrame = cv2.cvtColor(scaledFrame,cv.CV_GRAY2BGR);
+	# Brandon - why do you need both conditionals here?
 	if circles is not None and len(circles)>0:
 		#print circles
 		for c in circles[0]:
