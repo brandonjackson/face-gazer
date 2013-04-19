@@ -1,0 +1,11 @@
+extracting pupil vs eyelashes:
+this is probably best: size/area covered wrt cropped frame
+distance/relation to perkinje images
+compare to hough circle position and size
+use histograms of areas enclosed by either hough or ellipses
+find it at the beginning with user input by tracking changing position and radius of hough circles. - a good way to figure out where to crop and how big the pupil is going to be. can be during the calibration period.
+
+
+cropping frame dynamically:
+use glasses to cut out upper right margins
+

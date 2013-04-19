@@ -702,6 +702,43 @@ def die(msg):
 	print "gaze-tracker: " + msg;
 	exit(1);
 
+def estimate_pupil(img, minr, maxr):
+	# estimates the x,y position of the pupil in img
+	
+	# create an integral image ii to do fast pupil location estimation
+	ii = cv2.integral(img);
+
+	h = img.shape[0];
+	print "h is " + str(h);
+	w = img.shape[1];
+	print "w is " + str(w);
+
+	print "wrange is " + str(w-6*minr);
+	print "hrange is " + str(h-6*minr);
+	best = 0;
+	bestx = 0;
+	besty = 0;	
+	# loop through all possible pupil radii r and all positions x,y
+	for r in range(minr, maxr+1):
+		#print r;
+		for y in range(h-6*r-1):
+			for x in range(w-6*r-1):
+				#print "(x,y) is " + str(x) + " " + str(y);
+				bright = ii[y+6*r,x+6*r] - ii[y+6*r,x] - \
+					ii[y,x+6*r] - ii[y,x];
+				i = x+2*r;
+				j = y+2*r;
+				dark = ii[j+r,i+r] - ii[j+r,i] - \
+					ii[j,i+r] - ii[j,i];
+				matchval = 2*dark - bright;
+				if matchval > best:
+					best = matchval;
+					bestx = i + r;
+					besty = j + r;
+
+	return x, y;
+
+
 # THESE INDICES CAN CHANGE AT A MOMENTS NOTICE
 # use a for loop to check for correct camera
 dev1 = "0";
@@ -772,12 +809,26 @@ while True:
 		maxval=255, type=cv.CV_THRESH_BINARY);
 	cv2.imshow('Thresholded',threshed);
 
+	# use on center - off surround template to quickly estimate pupil
+	# center over all x,y and pupil radius ranging from minr to maxr 
+	minr = int(round(threshed.shape[1]*0.03));
+	maxr = int(round(threshed.shape[1]*0.1));
+	
+	pupx, pupy = estimate_pupil(threshed, minr, maxr);
+		
+	# display minr and maxr in a separate window
+	# lineFrame = scaledFrame.copy();
+	# lineFrame = cv2.cvtColor(lineFrame,cv.CV_GRAY2BGR);
+	# cv2.line(lineFrame,tuple([200,50]), tuple([200+minr, 50]), (200, 100, 255));
+	# cv2.line(lineFrame,tuple([200,75]), tuple([200+maxr, 75]), (100, 255, 0));
+	# cv2.imshow("lines",lineFrame);
+	
+
 	# Blur, then apply canny edge detection
-	blurred = cv2.GaussianBlur(threshed,(7,7),1);
+	#blurred = cv2.GaussianBlur(threshed,(7,7),1);
 	# note: we never use the blurred image
 	edges = cv2.Canny(threshed,15,30);
 	cv2.imshow("CannyEdgeDetector",edges);
-
 
 	edgePoints = numpy.argwhere(edges>0);
 
@@ -788,21 +839,12 @@ while True:
 		ellipseFrame = scaledFrame.copy();
 		ellipseFrame = cv2.cvtColor(ellipseFrame,cv.CV_GRAY2BGR);
 		cv2.ellipse(ellipseFrame,eBox,(0, 255, 0));
+		cv2.circle(ellipseFrame,(pupx, pupy), minr ,(200, 100, 255));
 		cv2.imshow("ellipseFit",ellipseFrame);
-	
 
-	# check these values are good bounds
-	irisMinRadius = int(round(blurred.shape[1]*0.03));
-	irisMaxRadius = int(round(blurred.shape[1]*0.1));
-	lineFrame = scaledFrame.copy();
-	lineFrame = cv2.cvtColor(lineFrame,cv.CV_GRAY2BGR);
-	cv2.line(lineFrame,tuple([200,50]), tuple([200+irisMinRadius, 50]), (200, 100, 255));
-	cv2.line(lineFrame,tuple([200,75]), tuple([200+irisMaxRadius, 75]), (100, 255, 0));
-	cv2.imshow("lines",lineFrame);
-	
 	# TODO update this based on previously-found iris radii
-	minDistance = irisMaxRadius*2;
-	circles = cv2.HoughCircles(threshed, cv.CV_HOUGH_GRADIENT, 2, minDistance, param1=30, param2=10,minRadius=irisMinRadius,maxRadius=irisMaxRadius);
+	minDistance = maxr*2;
+	circles = cv2.HoughCircles(threshed, cv.CV_HOUGH_GRADIENT, 2, minDistance, param1=30, param2=10,minRadius=minr,maxRadius=maxr);
 	
 	pupilFrame = cv2.cvtColor(scaledFrame,cv.CV_GRAY2BGR);
 	# Brandon - why do you need both conditionals here?
