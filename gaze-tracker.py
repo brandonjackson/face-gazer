@@ -703,7 +703,8 @@ def die(msg):
 	exit(1);
 
 def estimate_pupil(img, minr, maxr):
-	# estimates the x,y position of the pupil in img
+	# estimates the x,y position of the pupil in img using an integral im
+	# REALLY REALLY SLOW RIGHT NOW
 	
 	# create an integral image ii to do fast pupil location estimation
 	ii = cv2.integral(img);
@@ -730,13 +731,156 @@ def estimate_pupil(img, minr, maxr):
 				j = y+2*r;
 				dark = ii[j+r,i+r] - ii[j+r,i] - \
 					ii[j,i+r] - ii[j,i];
-				matchval = 2*dark - bright;
+				matchval = bright - 2*dark;
 				if matchval > best:
 					best = matchval;
 					bestx = i + r;
 					besty = j + r;
 
 	return x, y;
+
+def est_pupil_template(img, minr, maxr):
+	# estimates the x,y position of the pupil in img using template matchng 
+	
+	h = img.shape[0];
+	print "h is " + str(h);
+	w = img.shape[1];
+	print "w is " + str(w);
+
+	print "wrange is " + str(w-6*minr);
+	print "hrange is " + str(h-6*minr);
+	best = 0;
+	bestx = 0;
+	besty = 0;	
+	# loop through all possible pupil radii r and all positions x,y
+	for r in range(minr, maxr+1):
+		#print r;
+		for y in range(h-6*r-1):
+			for x in range(w-6*r-1):
+				#print "(x,y) is " + str(x) + " " + str(y);
+				bright = ii[y+6*r,x+6*r] - ii[y+6*r,x] - \
+					ii[y,x+6*r] - ii[y,x];
+				i = x+2*r;
+				j = y+2*r;
+				dark = ii[j+r,i+r] - ii[j+r,i] - \
+					ii[j,i+r] - ii[j,i];
+				matchval = bright - 2*dark;
+				if matchval > best:
+					best = matchval;
+					bestx = i + r;
+					besty = j + r;
+
+	return x, y;
+
+	
+def bestcircle(img, circles):
+	# estimates the x,y position of the pupil in img using an integral
+	# image and checking only points indicated by the Hough circles array 
+
+	minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(img);
+	
+	temp = img/maxVal;
+	minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(temp);
+	print "minval, maxval is "
+	print minVal, maxVal;
+	# change 0's to -1's
+	temp = numpy.asarray(img);
+	temp = temp.astype(int);
+	print "type is "
+	print temp.dtype;
+	temp = 2*temp - 1); #cv2.add(temp, -5);
+
+	print numpy.amin(temp);
+
+	print "any value in temp";
+	print temp[100,50];
+	
+	minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(temp);
+	print "minval is "
+	print minVal;
+
+	minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(temp);
+	print "minval is "
+	print minVal;
+
+	threshed_retval,threshed = cv2.threshold(temp, 0, 
+		maxval=255, type=cv.CV_THRESH_BINARY);
+	cv2.imshow('temp', threshed);
+	# create an integral image ii to do fast pupil location estimation
+	ii = cv2.integral(temp);
+
+  	cv2.imshow('Integral',ii);
+	h = img.shape[0];
+	print "h is " + str(h);
+	w = img.shape[1];
+	print "w is " + str(w);
+
+	print "wrange is " + str(w-6*minr);
+	print "hrange is " + str(h-6*minr);
+	best = -w*h;
+	bestx = 0;
+	besty = 0;	
+
+	for c in circles[0]:
+		# may need to include this
+		# c = c.astype(numpy.int32);
+
+		# define scale of bright box radius bbr
+		bbr = 3;
+	 
+		print " c is";
+		print c;
+		xcent = c[0];
+		ycent = c[1];
+                r = c[2];
+	
+		# assign bright box corners bbr*r away from center
+		x1 = max(0,xcent-bbr*r);
+		y1 = max(0,ycent-bbr*r);
+		x2 = min(w,xcent+bbr*r);
+		y2 = min(h,ycent+bbr*r);
+ 
+		bright = ii[y2,x2] - ii[y2,x1] - ii[y1,x2] + ii[y1,x1];
+		print "ii[y2,x2], ii[y1,x1]";
+		print ii[y2,x2], ii[y1,x1];
+	
+		# assign dark box corners r away from center
+		x1 = max(0,xcent-r);
+		y1 = max(0,ycent-r);
+		x2 = min(w,xcent+r);
+		y2 = min(h,ycent+r);
+		
+		dark = ii[y2,x2] - ii[y2,x1] - ii[y1,x2] + ii[y1,x1];
+		
+		print "bright, dark";
+		print bright, dark;
+		darksum = cv2.sumElems(temp[y1:y2,x1:x2]);	
+		print "darksum"
+		print darksum;
+		
+		matchval = (bright - 2*dark)/(2*bbr*r*2*bbr*r);
+		print "matchval"
+		print matchval;
+		if matchval > best:
+			bestbri = bright;
+			bestdark = dark;
+			best = matchval;
+			bestc = c;
+			darksum = cv2.sumElems(temp[y1:y2,x1:x2]);	
+			bestxcent = xcent;
+			bestycent = ycent;
+		
+	print "best br, dark"
+	print bestbri, bestdark;
+	print "darksum"
+	print darksum;
+	print "val of bestxcent, ycent"
+	print temp[bestycent, bestxcent];
+
+
+				
+	return bestc;
+
 
 
 # THESE INDICES CAN CHANGE AT A MOMENTS NOTICE
@@ -799,9 +943,9 @@ while True:
 	# cv2.imshow('REye', R);
 	
 	scaledFrame = cv2.cvtColor(scaledFrame,cv.CV_BGR2GRAY);
-	cv2.imshow('OrigEye',scaledFrame);
+	#cv2.imshow('OrigEye',scaledFrame);
 
-	# remove rightmost 140px via cropping
+	# remove pixels not centered on eye 
 	scaledFrame = scaledFrame[125:375, 50:450];
 	cv2.imshow('CroppedEdye',scaledFrame);
 
@@ -812,39 +956,25 @@ while True:
 	# use on center - off surround template to quickly estimate pupil
 	# center over all x,y and pupil radius ranging from minr to maxr 
 	minr = int(round(threshed.shape[1]*0.03));
-	maxr = int(round(threshed.shape[1]*0.1));
+	maxr = int(round(threshed.shape[1]*0.06));
 	
-	pupx, pupy = estimate_pupil(threshed, minr, maxr);
+	
+	#pupx, pupy = estimate_pupil(threshed, minr, minr);
 		
+	# code to check size of minr and maxr
 	# display minr and maxr in a separate window
+	# print minr;
+	# print maxr;
 	# lineFrame = scaledFrame.copy();
 	# lineFrame = cv2.cvtColor(lineFrame,cv.CV_GRAY2BGR);
 	# cv2.line(lineFrame,tuple([200,50]), tuple([200+minr, 50]), (200, 100, 255));
 	# cv2.line(lineFrame,tuple([200,75]), tuple([200+maxr, 75]), (100, 255, 0));
 	# cv2.imshow("lines",lineFrame);
 	
-
-	# Blur, then apply canny edge detection
-	#blurred = cv2.GaussianBlur(threshed,(7,7),1);
-	# note: we never use the blurred image
-	edges = cv2.Canny(threshed,15,30);
-	cv2.imshow("CannyEdgeDetector",edges);
-
-	edgePoints = numpy.argwhere(edges>0);
-
-	# needs to be more robust
-	if edgePoints.shape[0] > 6:
-		ellipseBox = cv2.fitEllipse(edgePoints);
-		eBox = tuple([tuple([ellipseBox[0][1],ellipseBox[0][0]]),tuple([ellipseBox[1][1],ellipseBox[1][0]]),ellipseBox[2]*-1]);
-		ellipseFrame = scaledFrame.copy();
-		ellipseFrame = cv2.cvtColor(ellipseFrame,cv.CV_GRAY2BGR);
-		cv2.ellipse(ellipseFrame,eBox,(0, 255, 0));
-		cv2.circle(ellipseFrame,(pupx, pupy), minr ,(200, 100, 255));
-		cv2.imshow("ellipseFit",ellipseFrame);
-
 	# TODO update this based on previously-found iris radii
-	minDistance = maxr*2;
-	circles = cv2.HoughCircles(threshed, cv.CV_HOUGH_GRADIENT, 2, minDistance, param1=30, param2=10,minRadius=minr,maxRadius=maxr);
+	minDist = maxr*2;
+	circles = cv2.HoughCircles(threshed, cv.CV_HOUGH_GRADIENT, 2, \
+		minDist, param1=30, param2=10,minRadius=minr,maxRadius=maxr);
 	
 	pupilFrame = cv2.cvtColor(scaledFrame,cv.CV_GRAY2BGR);
 	# Brandon - why do you need both conditionals here?
@@ -852,11 +982,16 @@ while True:
 		#print circles
 		for c in circles[0]:
 			c = c.astype(numpy.int32);
-			
-			center = (c[0], c[1]);
-			#print 'center=',center,', radius=',c[2];
 			cv2.circle(pupilFrame,(c[0],c[1]),c[2],(0, 255, 0));
 
+	if circles is not None and len(circles)>0:
+		c = bestcircle(threshed, circles);
+		c = c.astype(numpy.int32);
+		print c;
+		cv2.circle(pupilFrame, (c[0]+2,c[1]+2), c[2], (255, 100, 255));
+	
+	cv2.imshow("HoughCircles",pupilFrame);
+	
 	# AN EXPERIMENT WITH GRAY PROJECTION
 	# if i is 100:
 	# 	horizontal_sum=numpy.squeeze(numpy.sum(threshed,axis=1));
@@ -870,9 +1005,26 @@ while True:
 	# 	plt.figure(2);
 	# 	plt.plot(range(0,500),vertical_sum);
 	# 	plt.show();
-	
-	cv2.imshow("HoughCircles",pupilFrame);
 
+
+	# Blur, then apply canny edge detection
+	blurred = cv2.GaussianBlur(threshed,(7,7),1);
+	# note: Brandon's original code didn't use the blurred image
+	# but for an estimate the other functions work better using it 
+	edges = cv2.Canny(blurred,15,30);
+	cv2.imshow("CannyEdgeDetector",edges);
+
+	edgePoints = numpy.argwhere(edges>0);
+
+	# needs to be more robust
+	if edgePoints.shape[0] > 6:
+		ellipseBox = cv2.fitEllipse(edgePoints);
+		eBox = tuple([tuple([ellipseBox[0][1],ellipseBox[0][0]]),tuple([ellipseBox[1][1],ellipseBox[1][0]]),ellipseBox[2]*-1]);
+		ellipseFrame = scaledFrame.copy();
+		ellipseFrame = cv2.cvtColor(ellipseFrame,cv.CV_GRAY2BGR);
+		cv2.ellipse(ellipseFrame,eBox,(0, 255, 0));
+#		cv2.circle(ellipseFrame,(pupx, pupy), minr ,(200, 100, 255));
+		cv2.imshow("ellipseFit",ellipseFrame);
 
 
 				
