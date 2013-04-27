@@ -1,4 +1,13 @@
 #!/usr/bin/env python2.7
+# 4/26/13 8:02pm 
+# in this version I have implemented an algorithm to estimate the center of
+# the pupil using the best hough circle in combination with template matching
+# using an integral image.  It produces good but not perfect results in
+# determining the correct circle associated with the pupil but occasionally
+# seems to prefer another circle.  My recommendation is that we don't allow
+# mascara as that was the major cause for error and that we use another
+# heuristic to make the estimate more robust such as radius changes between
+# frames or other time savers
 
 """
 gaze-tracker
@@ -773,43 +782,33 @@ def est_pupil_template(img, minr, maxr):
 	return x, y;
 
 	
-def bestcircle(img, circles):
+def bestcircle(img, circles, rmin, rmax):
 	# estimates the x,y position of the pupil in img using an integral
 	# image and checking only points indicated by the Hough circles array 
 
-	minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(img);
-	
-	temp = img/maxVal;
-	minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(temp);
-	print "minval, maxval is "
-	print minVal, maxVal;
+	temp = img/255;
+#	minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(temp);
+	#print "minval, maxval is "
+	#print minVal, maxVal;
 	# change 0's to -1's
-	temp = numpy.asarray(img);
-	temp = temp.astype(int);
-	print "type is "
-	print temp.dtype;
-	temp = 2*temp - 1); #cv2.add(temp, -5);
+	#temp = numpy.asarray(img);
+	#temp = temp.astype(numpy.int8);
+	#print "type is "
+	#print temp.dtype;
+	#temp = 2*temp - 1; #cv2.add(temp, -5);
 
-	print numpy.amin(temp);
+	#print numpy.amin(temp);
 
-	print "any value in temp";
-	print temp[100,50];
+	#print "any value in temp";
+	#print temp[100,50];
 	
-	minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(temp);
-	print "minval is "
-	print minVal;
+	#minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(temp);
+	#print "minval is "
+	#print minVal;
 
-	minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(temp);
-	print "minval is "
-	print minVal;
-
-	threshed_retval,threshed = cv2.threshold(temp, 0, 
-		maxval=255, type=cv.CV_THRESH_BINARY);
-	cv2.imshow('temp', threshed);
 	# create an integral image ii to do fast pupil location estimation
 	ii = cv2.integral(temp);
 
-  	cv2.imshow('Integral',ii);
 	h = img.shape[0];
 	print "h is " + str(h);
 	w = img.shape[1];
@@ -822,54 +821,53 @@ def bestcircle(img, circles):
 	besty = 0;	
 
 	for c in circles[0]:
-		# may need to include this
-		# c = c.astype(numpy.int32);
-
-		# define scale of bright box radius bbr
-		bbr = 3;
+		for r in range(rmin, rmax):
+			# define scale of bright box radius bbr
+			bbr = 3;
+		 
+			print " c is";
+			print c;
+			xcent = c[0];
+			ycent = c[1];
+			#r = c[2];
+		
+			# assign bright box corners bbr*r away from center
+			x1 = max(0,xcent-bbr*r);
+			y1 = max(0,ycent-bbr*r);
+			x2 = min(w,xcent+bbr*r);
+			y2 = min(h,ycent+bbr*r);
+			area = (y2-y1)*(x2-x1);	
 	 
-		print " c is";
-		print c;
-		xcent = c[0];
-		ycent = c[1];
-                r = c[2];
-	
-		# assign bright box corners bbr*r away from center
-		x1 = max(0,xcent-bbr*r);
-		y1 = max(0,ycent-bbr*r);
-		x2 = min(w,xcent+bbr*r);
-		y2 = min(h,ycent+bbr*r);
- 
-		bright = ii[y2,x2] - ii[y2,x1] - ii[y1,x2] + ii[y1,x1];
-		print "ii[y2,x2], ii[y1,x1]";
-		print ii[y2,x2], ii[y1,x1];
-	
-		# assign dark box corners r away from center
-		x1 = max(0,xcent-r);
-		y1 = max(0,ycent-r);
-		x2 = min(w,xcent+r);
-		y2 = min(h,ycent+r);
+			bright = ii[y2,x2] - ii[y2,x1] - ii[y1,x2] + ii[y1,x1];
+			print "ii[y2,x2], ii[y1,x1]";
+			print ii[y2,x2], ii[y1,x1];
 		
-		dark = ii[y2,x2] - ii[y2,x1] - ii[y1,x2] + ii[y1,x1];
-		
-		print "bright, dark";
-		print bright, dark;
-		darksum = cv2.sumElems(temp[y1:y2,x1:x2]);	
-		print "darksum"
-		print darksum;
-		
-		matchval = (bright - 2*dark)/(2*bbr*r*2*bbr*r);
-		print "matchval"
-		print matchval;
-		if matchval > best:
-			bestbri = bright;
-			bestdark = dark;
-			best = matchval;
-			bestc = c;
+			# assign dark box corners r away from center
+			x1 = max(0,xcent-r);
+			y1 = max(0,ycent-r);
+			x2 = min(w,xcent+r);
+			y2 = min(h,ycent+r);
+			
+			dark = ii[y2,x2] - ii[y2,x1] - ii[y1,x2] + ii[y1,x1];
+			
+			print "bright, dark";
+			print bright, dark;
 			darksum = cv2.sumElems(temp[y1:y2,x1:x2]);	
-			bestxcent = xcent;
-			bestycent = ycent;
+			print "darksum"
+			print darksum;
 		
+			matchval = (bright - 2*dark)/area;
+			print "matchval"
+			print matchval;
+			if matchval > best:
+				bestbri = bright;
+				bestdark = dark;
+				best = matchval;
+				bestc = c;
+				darksum = cv2.sumElems(temp[y1:y2,x1:x2]);	
+				bestxcent = xcent;
+				bestycent = ycent;
+			
 	print "best br, dark"
 	print bestbri, bestdark;
 	print "darksum"
@@ -877,8 +875,6 @@ def bestcircle(img, circles):
 	print "val of bestxcent, ycent"
 	print temp[bestycent, bestxcent];
 
-
-				
 	return bestc;
 
 
@@ -923,6 +919,9 @@ vertical_sum = 0;
 
 i = 0;
 
+# make a dynamically cropped frame
+crop = [0,0,frameEye.shape[1], frameEye.shape[0]];
+
 while True:
 	i = i+1;
 
@@ -945,8 +944,17 @@ while True:
 	scaledFrame = cv2.cvtColor(scaledFrame,cv.CV_BGR2GRAY);
 	#cv2.imshow('OrigEye',scaledFrame);
 
+
+	corners = cv2.goodFeaturesToTrack(scaledFrame, 50, .1, 20);
+	featureFrame = cv2.cvtColor(scaledFrame,cv.CV_GRAY2BGR);
+	if corners is not None:
+		corners = numpy.reshape(corners, (-1,2));
+		for x, y in corners:
+			cv2.circle(featureFrame,(x,y),3,(0, 255, 0));
+	cv2.imshow('GoodFeatures', featureFrame);
+
 	# remove pixels not centered on eye 
-	scaledFrame = scaledFrame[125:375, 50:450];
+	scaledFrame = scaledFrame[50:350, 50:450];
 	cv2.imshow('CroppedEdye',scaledFrame);
 
 	threshed_retval,threshed = cv2.threshold(scaledFrame, 120, 
@@ -979,13 +987,12 @@ while True:
 	pupilFrame = cv2.cvtColor(scaledFrame,cv.CV_GRAY2BGR);
 	# Brandon - why do you need both conditionals here?
 	if circles is not None and len(circles)>0:
-		#print circles
 		for c in circles[0]:
 			c = c.astype(numpy.int32);
 			cv2.circle(pupilFrame,(c[0],c[1]),c[2],(0, 255, 0));
 
 	if circles is not None and len(circles)>0:
-		c = bestcircle(threshed, circles);
+		c = bestcircle(threshed, circles, minr, maxr);
 		c = c.astype(numpy.int32);
 		print c;
 		cv2.circle(pupilFrame, (c[0]+2,c[1]+2), c[2], (255, 100, 255));
