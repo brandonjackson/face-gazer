@@ -815,6 +815,7 @@ def bestcircle(img, circles, rmin, rmax):
 	
 	return bestc, bestr;
 
+disp = Display();
 
 # THESE INDICES CAN CHANGE AT A MOMENTS NOTICE
 # use a for loop to check for correct camera
@@ -894,9 +895,18 @@ while True:
 	# frame = cv.BoundingRect(corners, update=0)
 	# remove pixels not centered on eye 
 	scaledFrame = scaledFrame[0:250, 50:450];
+	blurred1 = cv2.GaussianBlur(scaledFrame,(21,21),1);
+	cv2.imshow("Blurred",blurred1);
 
-	threshed_retval,threshed = cv2.threshold(scaledFrame, 100, 
+	disp.drawHistogram(blurred1, False);
+
+	minval = numpy.min(blurred1);
+
+	threshval = minval + 25;
+	threshed_retval,threshed = cv2.threshold(blurred1, threshval, 
 		maxval=255, type=cv.CV_THRESH_BINARY);
+	matr = numpy.where(threshed == threshval);	
+	threshed[matr] = 255;
 	cv2.imshow('Thresholded',threshed);
 
 	# use on center - off surround template to quickly estimate pupil
@@ -936,8 +946,7 @@ while True:
 		cv2.circle(pupilFrame, (c[0]+2,c[1]+2), c[2], (255, 100, 255));
 		cv2.rectangle(pupilFrame, (c[0]-2*r,c[1]-2*r), (c[0]+2*r,c[1]+2*r), (255, 100, 255));
 
-		print pupROI[0];
-		blurredROI = cv2.GaussianBlur(threshed[pupROI[1]:pupROI[3], pupROI[0]:pupROI[2]], (7,7) ,1);
+		blurredROI = cv2.GaussianBlur(threshed, (15,15) ,1);#[pupROI[1]:pupROI[3], pupROI[0]:pupROI[2]], (7,7) ,1);
 		edgesROI = cv2.Canny(blurredROI,15,30);
 		conROI = edgesROI;
 		contours, hierarchy = cv2.findContours(edgesROI,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE);
@@ -947,7 +956,7 @@ while True:
 			if retval > best:
 				bestcnt = cnt;	
 		edgesROI = cv2.cvtColor(edgesROI,cv.CV_GRAY2BGR);
-		cv2.drawContours(edgesROI,cnt,-1,(255,255,0),-1);
+		cv2.drawContours(edgesROI,bestcnt,-1,(255,255,0),-1);
 		cv2.imshow("contours",edgesROI);
 	
 	# estimate pupil using template matching
