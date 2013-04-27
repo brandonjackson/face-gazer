@@ -890,10 +890,12 @@ while True:
 			cv2.circle(featureFrame,(x,y),3,(0, 255, 0));
 	cv2.imshow('GoodFeatures', featureFrame);
 
-	# remove pixels not centered on eye 
-	scaledFrame = scaledFrame[50:350, 50:450];
 
-	threshed_retval,threshed = cv2.threshold(scaledFrame, 120, 
+	# frame = cv.BoundingRect(corners, update=0)
+	# remove pixels not centered on eye 
+	scaledFrame = scaledFrame[0:250, 50:450];
+
+	threshed_retval,threshed = cv2.threshold(scaledFrame, 100, 
 		maxval=255, type=cv.CV_THRESH_BINARY);
 	cv2.imshow('Thresholded',threshed);
 
@@ -930,9 +932,24 @@ while True:
 	if circles is not None and len(circles)>0:
 		c, r = bestcircle(threshed, circles, minr, maxr);
 		c = c.astype(numpy.int32);
+		pupROI = [c[0]-2*r,c[1]-2*r, c[0]+2*r,c[1]+2*r];
 		cv2.circle(pupilFrame, (c[0]+2,c[1]+2), c[2], (255, 100, 255));
-		cv2.rectangle(pupilFrame, (c[0]-r,c[1]-r), (c[0]+r,c[1]+r), (255, 100, 255));
+		cv2.rectangle(pupilFrame, (c[0]-2*r,c[1]-2*r), (c[0]+2*r,c[1]+2*r), (255, 100, 255));
 
+		print pupROI[0];
+		blurredROI = cv2.GaussianBlur(threshed[pupROI[1]:pupROI[3], pupROI[0]:pupROI[2]], (7,7) ,1);
+		edgesROI = cv2.Canny(blurredROI,15,30);
+		conROI = edgesROI;
+		contours, hierarchy = cv2.findContours(edgesROI,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE);
+		best = 0;
+		for cnt in contours:
+			retval = cv2.contourArea(cnt);
+			if retval > best:
+				bestcnt = cnt;	
+		edgesROI = cv2.cvtColor(edgesROI,cv.CV_GRAY2BGR);
+		cv2.drawContours(edgesROI,cnt,-1,(255,255,0),-1);
+		cv2.imshow("contours",edgesROI);
+	
 	# estimate pupil using template matching
 	#loc = est_pupil_template(scaledFrame, maxr, maxr);
 	#cv2.circle(pupilFrame, loc, 10, (50, 255, 100));
@@ -959,7 +976,7 @@ while True:
 	# but for an estimate the other functions work better using it 
 	edges = cv2.Canny(blurred,15,30);
 	cv2.imshow("CannyEdgeDetector",edges);
-
+	
 	edgePoints = numpy.argwhere(edges>0);
 
 	# needs to be more robust
