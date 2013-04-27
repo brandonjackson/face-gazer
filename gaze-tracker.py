@@ -1,13 +1,4 @@
 #!/usr/bin/env python2.7
-# 4/26/13 8:02pm 
-# in this version I have implemented an algorithm to estimate the center of
-# the pupil using the best hough circle in combination with template matching
-# using an integral image.  It produces good but not perfect results in
-# determining the correct circle associated with the pupil but occasionally
-# seems to prefer another circle.  My recommendation is that we don't allow
-# mascara as that was the major cause for error and that we use another
-# heuristic to make the estimate more robust such as radius changes between
-# frames or other time savers
 
 """
 gaze-tracker
@@ -750,36 +741,31 @@ def estimate_pupil(img, minr, maxr):
 
 def est_pupil_template(img, minr, maxr):
 	# estimates the x,y position of the pupil in img using template matchng 
+	# currently doesn't pick out the pupil 
 	
 	h = img.shape[0];
-	print "h is " + str(h);
 	w = img.shape[1];
-	print "w is " + str(w);
 
-	print "wrange is " + str(w-6*minr);
-	print "hrange is " + str(h-6*minr);
-	best = 0;
-	bestx = 0;
-	besty = 0;	
+	best = w*h;
 	# loop through all possible pupil radii r and all positions x,y
 	for r in range(minr, maxr+1):
-		#print r;
-		for y in range(h-6*r-1):
-			for x in range(w-6*r-1):
-				#print "(x,y) is " + str(x) + " " + str(y);
-				bright = ii[y+6*r,x+6*r] - ii[y+6*r,x] - \
-					ii[y,x+6*r] - ii[y,x];
-				i = x+2*r;
-				j = y+2*r;
-				dark = ii[j+r,i+r] - ii[j+r,i] - \
-					ii[j,i+r] - ii[j,i];
-				matchval = bright - 2*dark;
-				if matchval > best:
-					best = matchval;
-					bestx = i + r;
-					besty = j + r;
-
-	return x, y;
+		templ = numpy.ones((4*r,4*r))*255;
+		templ[r:3*r,r:3*r] = 0;
+		templ = templ.astype(numpy.uint8);
+		
+		cv2.imshow('template', templ);
+		result = cv2.matchTemplate(img, templ,cv.CV_TM_SQDIFF_NORMED); 
+		minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(result);
+		
+		print minVal;
+		print maxVal;
+		if minVal < best:
+			best = minVal;
+			bestloc = [minLoc[0],minLoc[1]];
+			#bestloc[0] = bestloc[0] + 6*r;
+			#bestloc[1] = bestloc[1] + 6*r;
+				
+	return tuple(bestloc);
 
 	
 def bestcircle(img, circles, rmin, rmax):
@@ -787,35 +773,13 @@ def bestcircle(img, circles, rmin, rmax):
 	# image and checking only points indicated by the Hough circles array 
 
 	temp = img/255;
-#	minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(temp);
-	#print "minval, maxval is "
-	#print minVal, maxVal;
-	# change 0's to -1's
-	#temp = numpy.asarray(img);
-	#temp = temp.astype(numpy.int8);
-	#print "type is "
-	#print temp.dtype;
-	#temp = 2*temp - 1; #cv2.add(temp, -5);
-
-	#print numpy.amin(temp);
-
-	#print "any value in temp";
-	#print temp[100,50];
-	
-	#minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(temp);
-	#print "minval is "
-	#print minVal;
 
 	# create an integral image ii to do fast pupil location estimation
 	ii = cv2.integral(temp);
 
 	h = img.shape[0];
-	print "h is " + str(h);
 	w = img.shape[1];
-	print "w is " + str(w);
 
-	print "wrange is " + str(w-6*minr);
-	print "hrange is " + str(h-6*minr);
 	best = -w*h;
 	bestx = 0;
 	besty = 0;	
@@ -825,11 +789,8 @@ def bestcircle(img, circles, rmin, rmax):
 			# define scale of bright box radius bbr
 			bbr = 3;
 		 
-			print " c is";
-			print c;
 			xcent = c[0];
 			ycent = c[1];
-			#r = c[2];
 		
 			# assign bright box corners bbr*r away from center
 			x1 = max(0,xcent-bbr*r);
@@ -837,46 +798,22 @@ def bestcircle(img, circles, rmin, rmax):
 			x2 = min(w,xcent+bbr*r);
 			y2 = min(h,ycent+bbr*r);
 			area = (y2-y1)*(x2-x1);	
-	 
 			bright = ii[y2,x2] - ii[y2,x1] - ii[y1,x2] + ii[y1,x1];
-			print "ii[y2,x2], ii[y1,x1]";
-			print ii[y2,x2], ii[y1,x1];
 		
 			# assign dark box corners r away from center
 			x1 = max(0,xcent-r);
 			y1 = max(0,ycent-r);
 			x2 = min(w,xcent+r);
 			y2 = min(h,ycent+r);
-			
 			dark = ii[y2,x2] - ii[y2,x1] - ii[y1,x2] + ii[y1,x1];
-			
-			print "bright, dark";
-			print bright, dark;
-			darksum = cv2.sumElems(temp[y1:y2,x1:x2]);	
-			print "darksum"
-			print darksum;
 		
 			matchval = (bright - 2*dark)/area;
-			print "matchval"
-			print matchval;
 			if matchval > best:
-				bestbri = bright;
-				bestdark = dark;
 				best = matchval;
 				bestc = c;
-				darksum = cv2.sumElems(temp[y1:y2,x1:x2]);	
-				bestxcent = xcent;
-				bestycent = ycent;
-			
-	print "best br, dark"
-	print bestbri, bestdark;
-	print "darksum"
-	print darksum;
-	print "val of bestxcent, ycent"
-	print temp[bestycent, bestxcent];
-
-	return bestc;
-
+				bestr = r;
+	
+	return bestc, bestr;
 
 
 # THESE INDICES CAN CHANGE AT A MOMENTS NOTICE
@@ -955,7 +892,6 @@ while True:
 
 	# remove pixels not centered on eye 
 	scaledFrame = scaledFrame[50:350, 50:450];
-	cv2.imshow('CroppedEdye',scaledFrame);
 
 	threshed_retval,threshed = cv2.threshold(scaledFrame, 120, 
 		maxval=255, type=cv.CV_THRESH_BINARY);
@@ -964,7 +900,7 @@ while True:
 	# use on center - off surround template to quickly estimate pupil
 	# center over all x,y and pupil radius ranging from minr to maxr 
 	minr = int(round(threshed.shape[1]*0.03));
-	maxr = int(round(threshed.shape[1]*0.06));
+	maxr = int(round(threshed.shape[1]*0.1));
 	
 	
 	#pupx, pupy = estimate_pupil(threshed, minr, minr);
@@ -992,11 +928,14 @@ while True:
 			cv2.circle(pupilFrame,(c[0],c[1]),c[2],(0, 255, 0));
 
 	if circles is not None and len(circles)>0:
-		c = bestcircle(threshed, circles, minr, maxr);
+		c, r = bestcircle(threshed, circles, minr, maxr);
 		c = c.astype(numpy.int32);
-		print c;
 		cv2.circle(pupilFrame, (c[0]+2,c[1]+2), c[2], (255, 100, 255));
-	
+		cv2.rectangle(pupilFrame, (c[0]-r,c[1]-r), (c[0]+r,c[1]+r), (255, 100, 255));
+
+	# estimate pupil using template matching
+	#loc = est_pupil_template(scaledFrame, maxr, maxr);
+	#cv2.circle(pupilFrame, loc, 10, (50, 255, 100));
 	cv2.imshow("HoughCircles",pupilFrame);
 	
 	# AN EXPERIMENT WITH GRAY PROJECTION
