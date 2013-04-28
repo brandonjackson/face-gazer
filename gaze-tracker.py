@@ -999,6 +999,12 @@ while True:
 		cv2.imshow("ellipseFit",ellipseFrame);
 
 
-				
+	if i == 20:
+		print "please focus on the pink square in the image, press space bar and then turn your head until you are dizzy";
+		size = 500;
+		calim = numpy.ones((size,size,3), numpy.uint8)*(255,255,0); 
+	
+		calim[size/2-10:size/2+10, size/2-10:size/2+10, :] = (100,100,100);
+		cv2.imshow("Pink Calibration Square", calim);				
 
 #cProfile.run('main()','profile.o','cumtime');
