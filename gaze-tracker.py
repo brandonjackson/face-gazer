@@ -894,7 +894,7 @@ while True:
 
 	# frame = cv.BoundingRect(corners, update=0)
 	# remove pixels not centered on eye 
-	scaledFrame = scaledFrame[0:250, 50:450];
+	scaledFrame = scaledFrame[50:350, 100:550];
 	blurred1 = cv2.GaussianBlur(scaledFrame,(21,21),1);
 	cv2.imshow("Blurred",blurred1);
 
