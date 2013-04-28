@@ -815,6 +815,12 @@ def bestcircle(img, circles, rmin, rmax):
 	
 	return bestc, bestr;
 
+def findcalim(img, templ):
+	# returns the best location of the template
+	result = cv2.matchTemplate(img, templ,cv.CV_TM_SQDIFF_NORMED); 
+	minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(result);
+	return minLoc;	
+
 disp = Display();
 
 # THESE INDICES CAN CHANGE AT A MOMENTS NOTICE
@@ -860,12 +866,15 @@ i = 0;
 # make a dynamically cropped frame
 crop = [0,0,frameEye.shape[1], frameEye.shape[0]];
 
+eyepts = [(0,0)];
+worldpts = [(0,0)];
+done = False;
+
 while True:
 	i = i+1;
 
 	frameWorldRetVal, frameWorld = cameraWorld.read();
 	scaledWorld = cv2.resize(frameWorld,None,fx=0.5,fy=0.5);
-	cv2.imshow('TheWorld',scaledWorld);
 
 	frameEyeRetVal, frameEye = cameraEye.read();
 	# eye camera returns frames that are 800px high by 1280px wide
@@ -995,10 +1004,45 @@ while True:
 		ellipseFrame = scaledFrame.copy();
 		ellipseFrame = cv2.cvtColor(ellipseFrame,cv.CV_GRAY2BGR);
 		cv2.ellipse(ellipseFrame,eBox,(0, 255, 0));
-#		cv2.circle(ellipseFrame,(pupx, pupy), minr ,(200, 100, 255));
+		# clearly the center is wrong here, but ... 
+		center = (numpy.asarray(ellipseBox[0]) + \
+			numpy.asarray(ellipseBox[1]))/2;
+		center = center.astype(int);
+		p1 = numpy.asarray(eBox[0]);
+		p1 = p1.astype(int);
+		p2 = numpy.asarray(eBox[1]);
+		p2 = p2.astype(int);
+		cv2.circle(ellipseFrame, (center[0],center[1]), 3, (255, 100, 255));
+		cv2.rectangle(ellipseFrame, tuple(p1), tuple(p2), (255, 100, 255));
 		cv2.imshow("ellipseFit",ellipseFrame);
 
 
-				
+	if i == 2:
+		print "please focus on the pink square in the image."
+		print "press space bar then turn your head until you are dizzy";
+		size = 500;
+		calim = numpy.zeros((size,size,3), numpy.uint8);
+		print calim[0,0];
+		calim[:,:,0] = 255;
+		calim[:,:,2] = 255;
+		calim[size/2-10:size/2+10, size/2-10:size/2+10] = (100,100,100);
+		cv2.imshow("Pink Calibration Square", calim);        
+	  	templ = cv2.resize(calim,None,fx=0.1,fy=0.1);
+		cv2.imshow('template', templ);
+	
+	# assume by i == 100 the user is looking at the gray square
+	if i > 2 and not done:
+		#worldpt = findcalim(scaledWorld, templ);
+		bestmatch = (50,50);
+		cv2.circle(scaledWorld, worldpt, 5, (255, 100, 255));
+		cv2.imshow('TheWorld',scaledWorld);
+		print "start";
+		# if the pupil center was calculated then try to store a point
+		if edgePoints.shape[0] > 6:
+			# find the pink calibration square center 
+			eyepts.append(center);
+			worldpts.append(bestmatch);
+		#if i > 60:
+		#	done = True;	
 
 #cProfile.run('main()','profile.o','cumtime');
