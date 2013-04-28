@@ -1,0 +1,9 @@
+
+	#if i == 20:
+	#	print "please focus on the pink square in the image, press space bar and then turn your head until you are dizzy";
+		#size = 500;
+		#calim = numpy.ones((size,size,3), numpy.uint8); 
+#		calim[size/2-10:size/2+10, size/2-10:size/2+10] = 0;
+		#cv2.imshow("Pink Calibration Square", calim);				
+
+
