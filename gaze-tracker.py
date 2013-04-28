@@ -870,6 +870,7 @@ crop = [0,0,frameEye.shape[1], frameEye.shape[0]];
 eyepts = [(0,0)];
 worldpts = [(0,0)];
 done = False;
+eyePoints = [[0,0]];
 
 while True:
 	i = i+1;
@@ -998,6 +999,7 @@ while True:
 	cv2.imshow("CannyEdgeDetector",edges);
 	
 	edgePoints = numpy.argwhere(edges>0);
+	print edgePoints;
 
 	# needs to be more robust
 	if edgePoints.shape[0] > 6:
@@ -1022,8 +1024,32 @@ while True:
 		#cv2.imshow("Calibration Image", calim);        
 	  	#templ = cv2.resize(calim,(100,100));
 		#cv2.imshow('template', templ);
+
+	# use data accumulated during calibration constrain ROI
+	# and radius for pupil
+	if i > 20 and i <= 200:
+		if edgePoints.shape[0] > 6:
+			eyePoints[0].append([center[0],center[1]]);
+		print eyePoints;
+		if eyePoints.shape[0] > 6:
+			ellipseBox = cv2.fitEllipse(eyePoints);
+			eBox = tuple([tuple([ellipseBox[0][1],\
+			ellipseBox[0][0]]),tuple([ellipseBox[1][1],\
+			ellipseBox[1][0]]),ellipseBox[2]*-1]);
+			cv2.ellipse(ellipseFrame,eBox,(0, 0, 255));
+			cv2.imshow("ellipseFit",ellipseFrame);
+			
+		if i == 200:
+			eyellipse = numpy.zeros(scaledFrame.shape[1],\
+				scaledFrame.shape[0]);
+			cv2.ellipse(eyellipse,eBox,1);
+			cv2.imshow("eyellipse",eyellipse);
+			edgePoints = numpy.argwhere(eyellipse>0);
+			bBox = cv2.boundingRect(edgePoints);	
+			cv2.rectangle(ellipseFrame,bBox[0],bBox[1],(0,0,255)); 	
 	
-	# assume by i == 100 the user is looking at the gray square
+
+	# assume by i == 20 the user is looking at the gray square
 	if i > 20 and not done:
 		print "calibrating";
 		#worldpt = findcalim(scaledWorld, templ);
@@ -1042,7 +1068,7 @@ while True:
 			print worldpt;
 			# if the pupil center was calculated then try to store a point
 			if edgePoints.shape[0] > 6:
-				# find the pink calibration square center 
+				# find the calibration image 
 				eyepts.append(center);
 				worldpts.append(tuple(worldpt[0]));
 			if len(eyepts) > 200:
