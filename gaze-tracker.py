@@ -1220,6 +1220,9 @@ while True:
 		print gazept;
 		cv2.circle(scaledWorldColor, tuple(gazept),30, (255, 100, 255), 5);
 	
+	# detect skin color
+	skinhist = numpy.zeros((256,256));
+	
 	cv2.imshow('TheWorld',scaledWorldColor);
 
 	#######################################################
