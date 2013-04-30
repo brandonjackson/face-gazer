@@ -951,6 +951,15 @@ scaledymin = 130;
 scaledxmax = 450; 
 scaledymax = 350; 
 
+# create skin color histogram in YCrCb space
+skinhist = numpy.zeros((256,256));
+cv2.circle(skinhist,(113,155.6),3,(0, 255, 0));
+		skinhist = np.zeros((256,256));
+		dat = dat.astype(np.uint8);
+		cv2.ellipse(dat,eBox,0);
+		cv2.ellipse(eyellipse,eBox,0);
+		cv2.imshow("eyellipse",eyellipse);
+
 while True:
 	i = i+1;
 
@@ -1227,6 +1236,10 @@ while True:
 		print gazept;
 		#cv2.circle(scaledWorld, (50,50),7, (255, 100, 255));
 		cv2.circle(frameWorld, tuple(gazept),25, (255, 100, 255));
+	
+
+	# detect skin color
+	skinhist = numpy.zeros((256,256));
 			
 	cv2.imshow('TheWorld',frameWorld);
 
