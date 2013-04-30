@@ -662,7 +662,7 @@ class Capture:
 
 def main():
 	# Instantiate Classes
-	#detector = FaceDetector(FACE_CLASSIFIER_PATH, EYE_CLASSIFIER_PATH);
+	# detector = FaceDetector(FACE_CLASSIFIER_PATH, EYE_CLASSIFIER_PATH);
 	#model = FaceModel();
 	#display = Display();
 	captureEye = Capture(2);
@@ -894,6 +894,7 @@ def getWorldCoords((eyex, eyey), ax, ay):
 
  
 disp = Display();
+detector = FaceDetector(FACE_CLASSIFIER_PATH, EYE_CLASSIFIER_PATH);
 
 # THESE INDICES CAN CHANGE AT A MOMENTS NOTICE
 # use a for loop to check for correct camera
@@ -907,8 +908,8 @@ while dev1 != "":
   if not cameraEye.isOpened():
     die("eye camera failed on device " + dev1);
   frameEyeRetVal, frameEye = cameraEye.read();
-  scaledFrame = cv2.resize(frameEye,None,fx=0.5,fy=0.5);
-  cv2.imshow('Eye Camera',scaledFrame);
+  scaledEye = cv2.resize(frameEye,None,fx=0.5,fy=0.5);
+  cv2.imshow('Eye Camera',scaledEye);
   dev1 = raw_input("Provide a new device number for the eye camera " + 
 	"or hit enter if the correct device has already been selected\n");
 
@@ -956,39 +957,40 @@ while True:
 
 	frameWorldRetVal, frameWorld = cameraWorld.read();
 
-	scaledWorld = cv2.resize(frameWorld,None,fx=0.5,fy=0.5);
+	scaledWorldBW = cv2.resize(frameWorld,None,fx=0.5,fy=0.5);
+	scaledWorldBW = cv2.cvtColor(scaledWorldBW,cv.CV_BGR2GRAY);
 
 	frameWorld = cv2.resize(frameWorld,None,fx=0.5,fy=0.5);
 
 	frameEyeRetVal, frameEye = cameraEye.read();
 	# eye camera returns frames that are 800px high by 1280px wide
-	scaledFrame = cv2.resize(frameEye,None,fx=0.5,fy=0.5);
+	scaledEye = cv2.resize(frameEye,None,fx=0.5,fy=0.5);
 	
 	# experimenting with RGB image in order to crop eye more dynamically
 	# ideas: use blue image to find glasses to crop image quickly
 	# then use blue image to find pupil and crop box around it
-	# B, G, R = cv2.split(scaledFrame);
+	# B, G, R = cv2.split(scaledEye);
 	# cv2.imshow('BEye', B);
 	# cv2.imshow('GEye', G);
 	# cv2.imshow('REye', R);
 	
-	scaledFrame = cv2.cvtColor(scaledFrame,cv.CV_BGR2GRAY);
-	scaledWorld = cv2.cvtColor(scaledWorld,cv.CV_BGR2GRAY);
-	#cv2.imshow('OrigEye',scaledFrame);
+	scaledEye = cv2.cvtColor(scaledEye,cv.CV_BGR2GRAY);
+	
+	#cv2.imshow('OrigEye',scaledEye);
 
 	#
-	corners = cv2.goodFeaturesToTrack(scaledFrame, 50, .1, 20);
-	featureFrame = cv2.cvtColor(scaledFrame,cv.CV_GRAY2BGR);
+	corners = cv2.goodFeaturesToTrack(scaledEye, 50, .1, 20);
+	featureFrame = cv2.cvtColor(scaledEye,cv.CV_GRAY2BGR);
 	if corners is not None:
 		corners = np.reshape(corners, (-1,2));
 		for x, y in corners:
 			cv2.circle(featureFrame,(x,y),3,(0, 255, 0));
 
 	# remove pixels not centered on eye 
-	scaledFrame = scaledFrame[scaledymin:scaledymax, scaledxmin:scaledxmax];
+	scaledEye = scaledEye[scaledymin:scaledymax, scaledxmin:scaledxmax];
 	
 	if eyedata_initialized == False:
-		eyellipse = np.ones(scaledFrame.shape)*255;
+		eyellipse = np.ones(scaledEye.shape)*255;
 		eyellipse = eyellipse.astype(np.uint8);
 		eyedata_initialized = True;
 
@@ -997,7 +999,7 @@ while True:
 	#######################################################
 
 	# Blur image, eliminating high spatial frequency dark spots
-	blurred1 = cv2.GaussianBlur(scaledFrame,(21,21),1);
+	blurred1 = cv2.GaussianBlur(scaledEye,(21,21),1);
 
 
 	# Dynamic threshold: slightly higher than lowest light intensity
@@ -1022,7 +1024,7 @@ while True:
 	# display minr and maxr in a separate window
 	# print minr;
 	# print maxr;
-	# lineFrame = scaledFrame.copy();
+	# lineFrame = scaledEye.copy();
 	# lineFrame = cv2.cvtColor(lineFrame,cv.CV_GRAY2BGR);
 	# cv2.line(lineFrame,tuple([200,50]), tuple([200+minr, 50]), (200, 100, 255));
 	# cv2.line(lineFrame,tuple([200,75]), tuple([200+maxr, 75]), (100, 255, 0));
@@ -1033,7 +1035,7 @@ while True:
 	circles = cv2.HoughCircles(threshed, cv.CV_HOUGH_GRADIENT, 2, \
 		minDist, param1=30, param2=10,minRadius=minr,maxRadius=maxr);
 	
-	houghCircleFrame = cv2.cvtColor(scaledFrame,cv.CV_GRAY2BGR);
+	houghCircleFrame = cv2.cvtColor(scaledEye,cv.CV_GRAY2BGR);
 	
 	# Brandon - why do you need both conditionals here?
 	if circles is not None and len(circles)>0:
@@ -1062,7 +1064,7 @@ while True:
 #		cv2.imshow("contours",edgesROI);
 
 	# estimate pupil using template matching
-	#loc = est_pupil_template(scaledFrame, maxr, maxr);
+	#loc = est_pupil_template(scaledEye, maxr, maxr);
 	#cv2.circle(houghCircleFrame, loc, 10, (50, 255, 100));
 	
 
@@ -1081,7 +1083,7 @@ while True:
 		eBox = tuple([tuple([ellipseBox[0][1],ellipseBox[0][0]]),\
 		tuple([ellipseBox[1][1],ellipseBox[1][0]]),ellipseBox[2]*-1]);
 		
-		ellipseFrame = scaledFrame.copy();
+		ellipseFrame = scaledEye.copy();
 		ellipseFrame = cv2.cvtColor(ellipseFrame,cv.CV_GRAY2BGR);
 		cv2.ellipse(ellipseFrame,eBox,(0, 255, 0));
 		
@@ -1152,7 +1154,7 @@ while True:
 	# 		done_accum = True;
 			
 	# 		# show the elipse in a new image frame
-	# 		dat = np.ones(scaledFrame.shape);
+	# 		dat = np.ones(scaledEye.shape);
 	# 		dat = dat.astype(np.uint8);
 	# 		cv2.ellipse(dat,eBox,0);
 	# 		cv2.ellipse(eyellipse,eBox,0);
@@ -1189,14 +1191,14 @@ while True:
 	# assume by i == 20 the user is looking at the gray square
 	if i > 20 and not done:
 		retval, worldcenters = \
-		cv2.findCirclesGridDefault(scaledWorld, (4,11), \
+		cv2.findCirclesGridDefault(scaledWorldBW, (4,11), \
 		flags=cv2.CALIB_CB_ASYMMETRIC_GRID); 
 		#print "retval is " + str(retval);
 		print '...';
 		if retval:
 			
 			worldpt = worldcenters.sum(0)/worldcenters.shape[0];
-			cv2.circle(scaledWorld, tuple(worldpt[0]), \
+			cv2.circle(scaledWorldBW, tuple(worldpt[0]), \
 				3, (255, 100, 255));
 			# if the pupil center was calculated then try to store a point
 			if edgePoints.shape[0] > 6:
@@ -1225,7 +1227,7 @@ while True:
 		gazept = np.asarray(gazept, dtype=np.int32);
 		gazept = np.around(gazept);
 		print gazept;
-		#cv2.circle(scaledWorld, (50,50),7, (255, 100, 255));
+		#cv2.circle(scaledWorldBW, (50,50),7, (255, 100, 255));
 		cv2.circle(frameWorld, tuple(gazept),25, (255, 100, 255));
 			
 	cv2.imshow('TheWorld',frameWorld);
