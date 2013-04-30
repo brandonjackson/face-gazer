@@ -901,6 +901,27 @@ detector = FaceDetector(FACE_CLASSIFIER_PATH, EYE_CLASSIFIER_PATH);
 dev1 = "0";
 dev2 = "1";
 
+# SKIN COLOR CODE
+# create skin color histogram in YCrCb space
+#skinhist = numpy.zeros((256,256));
+#skinhist = skinhist.astype(np.uint8);
+##cv2.ellipse(skinhist, center, axes, angle, startAngle, endAngle, color[, thickness[, lineType[, shift]]])None
+#cv2.ellipse(skinhist, (113, 155.6), (23.4, 15.2), 43.0, 0.0, 360.0, (255, 255, 255);
+#cv2.imshow("skinhist",skinhist);
+
+#http://spottrlabs.blogspot.com/2012/01/super-simple-skin-detector-in-opencv.html
+#bool isSkin(const Scalar& color) { 
+#    Mat input = Mat(Size(1, 1), CV_8UC3, color);
+#    Mat output;
+#
+#    cvtColor(input, output, CV_BGR2YCrCb);
+#
+#    Vec3b ycrcb = output.at<Vec3b>(0, 0);
+#    return ((skinCrCbHist.at<uchar>(ycrcb[1], ycrcb[2]) > 0));
+#}
+#
+
+ 
 # get user to define correct camera devices for eye and world cameras
 while dev1 != "":
   d1 = int(dev1);
@@ -951,15 +972,6 @@ scaledxmin = 0;
 scaledymin = 130; 
 scaledxmax = 450; 
 scaledymax = 350; 
-
-# create skin color histogram in YCrCb space
-skinhist = numpy.zeros((256,256));
-cv2.circle(skinhist,(113,155.6),3,(0, 255, 0));
-		skinhist = np.zeros((256,256));
-		dat = dat.astype(np.uint8);
-		cv2.ellipse(dat,eBox,0);
-		cv2.ellipse(eyellipse,eBox,0);
-		cv2.imshow("eyellipse",eyellipse);
 
 while True:
 	i = i+1;
