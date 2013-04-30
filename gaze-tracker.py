@@ -859,19 +859,19 @@ def fit_polynomial_surf(X,Y,Z):
     """
     return x,y,xx,yy,xy,xxyy,c
 
-def getWorldCoord(eyex, eyey, ax, ay):
+def getWorldCoords((eyex, eyey) ax, ay):
 	"""
 	Returns the world position x,y from the given eye coordinates
 	using the coefficients matrix a with coefficients for terms
 	x,y,xx,yy,xy,xxyy,c listed in that order
 	"""
 
-	x = ax[6] + ax[4]*eyex*eyey + ax[3]*eyey*eyey + ax[2]*eyex*eyex + \
-		ax[1]*eyey + ax[0]*eyex;
-	y = ay[6] + ay[4]*eyex*eyey + ay[3]*eyey*eyey + ay[2]*eyex*eyex + \
-		ay[1]*eyey + ay[0]*eyex;
-
-	return [x,y];
+#	x = ax[6] + ax[4]*eyex*eyey + ax[3]*eyey*eyey + ax[2]*eyex*eyex + \
+#		ax[1]*eyey + ax[0]*eyex;
+#	y = ay[6] + ay[4]*eyex*eyey + ay[3]*eyey*eyey + ay[2]*eyex*eyex + \
+#		ay[1]*eyey + ay[0]*eyex;
+#	return [x,y];
+	return (50,50);
 
 
  
@@ -1168,6 +1168,11 @@ while True:
 				print worldpts;	
 				print "eyepts";	
 				print eyepts;	
+	
+	if done == True:
+		gazept = getWorldCoords(center, 1, 1);
+		cv2.circle(scaledWorld,gazept,2,(0, 255, 200));
+			
 	cv2.imshow('TheWorld',scaledWorld);
 
 #cProfile.run('main()','profile.o','cumtime');
