@@ -822,6 +822,59 @@ def findcalim(img, templ):
 	minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(result);
 	return maxLoc;	
 
+
+def fit_polynomial_surf(X,Y,Z):         
+    """
+    Takes three lists of points and     
+    performs Singular Value Decomposition
+    to find a linear least squares fit surface
+    
+    This code was taken from the PUPIL project, which can be retrieved with:
+    git clone https://code.google.com/p/pupil/
+    """
+
+    One = np.ones(Z.shape)
+    Zero = np.zeros(Z.shape)
+    XX = X*X
+    YY = Y*Y
+    XY = X*Y
+    XXYY = X*Y*X*Y
+    V = np.vstack((One,X,Y,XX,YY,XY,XXYY))   
+    V = V.transpose()
+    U,w,Vt = np.linalg.svd(V,full_matrices=0);
+    V = Vt.transpose();
+    Ut = U.transpose();
+    pseudINV = np.dot(V, np.dot(np.diag(1/w), Ut));
+    coefs = np.dot(pseudINV, Z);
+    c, x,y,xx,yy,xy,xxyy = coefs
+    """
+    print "coeffs"
+    print "x",x
+    print "y",y
+    print "xy",xy
+    print "xx",xx
+    print "yy",yy
+    print "xxyy",xxyy
+    print "c",c
+    """
+    return x,y,xx,yy,xy,xxyy,c
+
+def getWorldCoord(eyex, eyey, ax, ay):
+	"""
+	Returns the world position x,y from the given eye coordinates
+	using the coefficients matrix a with coefficients for terms
+	x,y,xx,yy,xy,xxyy,c listed in that order
+	"""
+
+	x = ax[6] + ax[4]*eyex*eyey + ax[3]*eyey*eyey + ax[2]*eyex*eyex + \
+		ax[1]*eyey + ax[0]*eyex;
+	y = ay[6] + ay[4]*eyex*eyey + ay[3]*eyey*eyey + ay[2]*eyex*eyex + \
+		ay[1]*eyey + ay[0]*eyex;
+
+	return [x,y];
+
+
+ 
 disp = Display();
 
 # THESE INDICES CAN CHANGE AT A MOMENTS NOTICE
@@ -867,8 +920,10 @@ i = 0;
 # make a dynamically cropped frame
 crop = [0,0,frameEye.shape[1], frameEye.shape[0]];
 
-eyepts = [(0,0)];
-worldpts = [(0,0)];
+#eyepts = [(0,0)];
+eyepts_initialized = False;
+#worldpts = [(0,0)];
+world_initialized = False;
 done = False;
 eyePoints_initialized = False;
 eyedata_initialized = False;
@@ -1100,9 +1155,14 @@ while True:
 			# if the pupil center was calculated then try to store a point
 			if edgePoints.shape[0] > 6:
 				# find the calibration image 
-				eyepts.append(center);
-				worldpts.append(tuple(worldpt[0]));
-			if len(eyepts) > 200:
+				if eyepts_initialized == True:
+					worldpts.append(tuple(worldpt[0]));
+					eyepts.append(center);
+				else:
+					eyepts = [center];
+					worldpts = [tuple(worldpt[0])];
+					eyepts_initialized = True;
+			if eyepts is not None and len(eyepts) > 10:
 				done = True
 				print "worldpts";	
 				print worldpts;	
