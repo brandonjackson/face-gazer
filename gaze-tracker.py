@@ -870,7 +870,8 @@ crop = [0,0,frameEye.shape[1], frameEye.shape[0]];
 eyepts = [(0,0)];
 worldpts = [(0,0)];
 done = False;
-eyePoints = [[0,0]];
+eyePoints_initialized = False;
+eyedata_initialized = False;
 
 while True:
 	i = i+1;
@@ -906,7 +907,13 @@ while True:
 
 	# frame = cv.BoundingRect(corners, update=0)
 	# remove pixels not centered on eye 
-	scaledFrame = scaledFrame[50:350, 100:550];
+	scaledFrame = scaledFrame[0:350, 100:550];
+	
+	if eyedata_initialized == False:
+		eyellipse = numpy.ones(scaledFrame.shape)*255;
+		eyellipse = eyellipse.astype(numpy.uint8);
+		eyedata_initialized = True;
+		
 	blurred1 = cv2.GaussianBlur(scaledFrame,(21,21),1);
 	cv2.imshow("Blurred",blurred1);
 
@@ -999,7 +1006,6 @@ while True:
 	cv2.imshow("CannyEdgeDetector",edges);
 	
 	edgePoints = numpy.argwhere(edges>0);
-	print edgePoints;
 
 	# needs to be more robust
 	if edgePoints.shape[0] > 6:
@@ -1010,7 +1016,7 @@ while True:
 		cv2.ellipse(ellipseFrame,eBox,(0, 255, 0));
 		center = eBox[0];
 		center = tuple((numpy.asarray(eBox[0])).astype(int));
-		cv2.circle(ellipseFrame, center, 3, (255, 100, 255));
+		cv2.circle(ellipseFrame, center, 3,(255,0,0));
 		cv2.imshow("ellipseFit",ellipseFrame);
 
 
@@ -1027,11 +1033,18 @@ while True:
 
 	# use data accumulated during calibration constrain ROI
 	# and radius for pupil
-	if i > 20 and i <= 200:
+	if i >= 20 and i <= 50:
 		if edgePoints.shape[0] > 6:
-			eyePoints[0].append([center[0],center[1]]);
-		print eyePoints;
-		if eyePoints.shape[0] > 6:
+			if eyePoints_initialized is True:
+				eyePoints = numpy.vstack(\
+					[eyePoints, [center[1],center[0]]]);
+				eyellipse[center[1],center[0]] = 0;
+				cv2.imshow("eyellipse",eyellipse);
+			else:
+				eyePoints = numpy.array(\
+					[[center[1],center[0]]]);
+				eyePoints_initialized = True;	
+		if eyePoints_initialized is True and eyePoints.shape[0] > 6:
 			ellipseBox = cv2.fitEllipse(eyePoints);
 			eBox = tuple([tuple([ellipseBox[0][1],\
 			ellipseBox[0][0]]),tuple([ellipseBox[1][1],\
@@ -1039,14 +1052,32 @@ while True:
 			cv2.ellipse(ellipseFrame,eBox,(0, 0, 255));
 			cv2.imshow("ellipseFit",ellipseFrame);
 			
-		if i == 200:
-			eyellipse = numpy.zeros(scaledFrame.shape[1],\
-				scaledFrame.shape[0]);
-			cv2.ellipse(eyellipse,eBox,1);
+		if i == 50:
+			dat = numpy.ones(scaledFrame.shape);
+			dat = dat.astype(numpy.uint8);
+			cv2.ellipse(dat,eBox,0);
+			cv2.ellipse(eyellipse,eBox,0);
 			cv2.imshow("eyellipse",eyellipse);
-			edgePoints = numpy.argwhere(eyellipse>0);
-			bBox = cv2.boundingRect(edgePoints);	
-			cv2.rectangle(ellipseFrame,bBox[0],bBox[1],(0,0,255)); 	
+			
+			edgePoints = numpy.argwhere(dat==0);
+			maxvals = numpy.amax(edgePoints, axis=0);
+			minvals = numpy.amin(edgePoints, axis=0);
+			print minvals;
+			print maxvals;	
+			height = maxvals[1]-minvals[1];
+			width = maxvals[0]-minvals[0];
+			newheight = height*2;
+			newwidth = width*2;
+			newminvals = (minvals - minvals/2).astype(int); 
+			newmaxvals = minvals + [newheight,newwidth];
+			
+			print newminvals;
+			print newmaxvals; 
+			#contours, hierarchy = cv2.findContours(dat,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE);
+			#bBox = cv2.boundingRect(contours[0]);	
+			#cv2.rectangle(eyellipse,(minvals[1],minvals[0]),\
+			#	(maxvals[1],maxvals[0]),20);
+			cv2.imshow("eyellipse",eyellipse);
 	
 
 	# assume by i == 20 the user is looking at the gray square
