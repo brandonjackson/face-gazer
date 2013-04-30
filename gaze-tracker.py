@@ -955,16 +955,24 @@ scaledymax = 350;
 while True:
 	i = i+1;
 
+	#######################################################
+	# CAPTURE, SCALE & RECOLOR WORLD IMAGE							
+	#######################################################
 	frameWorldRetVal, frameWorld = cameraWorld.read();
-
 	scaledWorldBW = cv2.resize(frameWorld,None,fx=0.5,fy=0.5);
 	scaledWorldBW = cv2.cvtColor(scaledWorldBW,cv.CV_BGR2GRAY);
+	scaledWorldColor = cv2.resize(frameWorld,None,fx=0.5,fy=0.5);
 
-	frameWorld = cv2.resize(frameWorld,None,fx=0.5,fy=0.5);
-
+	#######################################################
+	# CAPTURE, SCALE & CROP EYE IMAGE							
+	#######################################################
 	frameEyeRetVal, frameEye = cameraEye.read();
 	# eye camera returns frames that are 800px high by 1280px wide
 	scaledEye = cv2.resize(frameEye,None,fx=0.5,fy=0.5);
+	scaledEye = cv2.cvtColor(scaledEye,cv.CV_BGR2GRAY);
+	# remove pixels not centered on eye 
+	scaledEye = scaledEye[scaledymin:scaledymax, scaledxmin:scaledxmax];
+
 	
 	# experimenting with RGB image in order to crop eye more dynamically
 	# ideas: use blue image to find glasses to crop image quickly
@@ -973,21 +981,15 @@ while True:
 	# cv2.imshow('BEye', B);
 	# cv2.imshow('GEye', G);
 	# cv2.imshow('REye', R);
-	
-	scaledEye = cv2.cvtColor(scaledEye,cv.CV_BGR2GRAY);
-	
-	#cv2.imshow('OrigEye',scaledEye);
 
-	#
-	corners = cv2.goodFeaturesToTrack(scaledEye, 50, .1, 20);
-	featureFrame = cv2.cvtColor(scaledEye,cv.CV_GRAY2BGR);
-	if corners is not None:
-		corners = np.reshape(corners, (-1,2));
-		for x, y in corners:
-			cv2.circle(featureFrame,(x,y),3,(0, 255, 0));
+	# # Good Features To Track
+	# corners = cv2.goodFeaturesToTrack(scaledEye, 50, .1, 20);
+	# featureFrame = cv2.cvtColor(scaledEye,cv.CV_GRAY2BGR);
+	# if corners is not None:
+	# 	corners = np.reshape(corners, (-1,2));
+	# 	for x, y in corners:
+	# 		cv2.circle(featureFrame,(x,y),3,(0, 255, 0));
 
-	# remove pixels not centered on eye 
-	scaledEye = scaledEye[scaledymin:scaledymax, scaledxmin:scaledxmax];
 	
 	if eyedata_initialized == False:
 		eyellipse = np.ones(scaledEye.shape)*255;
@@ -1000,7 +1002,6 @@ while True:
 
 	# Blur image, eliminating high spatial frequency dark spots
 	blurred1 = cv2.GaussianBlur(scaledEye,(21,21),1);
-
 
 	# Dynamic threshold: slightly higher than lowest light intensity
 	minval = np.min(blurred1);
@@ -1037,11 +1038,11 @@ while True:
 	
 	houghCircleFrame = cv2.cvtColor(scaledEye,cv.CV_GRAY2BGR);
 	
-	# Brandon - why do you need both conditionals here?
-	if circles is not None and len(circles)>0:
-		for c in circles[0]:
-			c = c.astype(np.int32);
-			cv2.circle(houghCircleFrame,(c[0],c[1]),c[2],(0, 255, 0));
+	# # Hough circle plotting
+	# if circles is not None and len(circles)>0:
+	# 	for c in circles[0]:
+	# 		c = c.astype(np.int32);
+	# 		cv2.circle(houghCircleFrame,(c[0],c[1]),c[2],(0, 255, 0));
 
 	if circles is not None and len(circles)>0:
 		c, r = bestcircle(threshed, circles, minr, maxr);
@@ -1093,30 +1094,6 @@ while True:
 		center = tuple(center);
 		cv2.circle(ellipseFrame, center, 3,(255,0,0));
 		cv2.imshow("ellipseFit",ellipseFrame);
-
-
-	#######################################################
-	# DIAGNOSTIC DISPLAYS	
-	# Uncomment as needed.							
-	#######################################################
-
-	# Display Blurred Image Used in Thresholding
-	# cv2.imshow("Blurred",blurred1);
-
-	# Display Histogram to Diagnose Skewed Distribution
-	# disp.drawHistogram(blurred1, False);
-
-	# Display Thresholded Image
-	# cv2.imshow('Thresholded',threshed);
-
-	# Display Edges
-	# cv2.imshow("CannyEdgeDetector",edges);
-
-	# Display Hough Circles
-	# cv2.imshow("HoughCircles",houghCircleFrame);
-
-	# Display GoodFeaturesToTrack
-	# cv2.imshow('GoodFeatures', featureFrame);
 
 	# print a message to indicate calibration is about to start
 	if i == 10:
@@ -1211,7 +1188,7 @@ while True:
 				# find the calibration image 
 				if eyepts_initialized == True:
 					print str(len(eyepts));
-					cv2.circle(frameWorld, tuple([worldpt[0][0],worldpt[0][1]]),5, (0, 0, 255));
+					cv2.circle(scaledWorldColor, tuple([worldpt[0][0],worldpt[0][1]]),5, (0, 0, 255));
 					worldpts.append([worldpt[0][0], \
 							 worldpt[0][1]]);
 					eyepts.append([center[0],center[1]]);
@@ -1239,12 +1216,33 @@ while True:
 	#######################################################
 	if done == True:
 		gazept = getWorldCoords(center, xcoeff, ycoeff);
-		gazept = np.asarray(gazept, dtype=np.int32);
-		gazept = np.around(gazept);
+		gazept = np.around(np.asarray(gazept, dtype=np.int32));
 		print gazept;
-		#cv2.circle(scaledWorldBW, (50,50),7, (255, 100, 255));
-		cv2.circle(frameWorld, tuple(gazept),25, (255, 100, 255));
-			
-	cv2.imshow('TheWorld',frameWorld);
+		cv2.circle(scaledWorldColor, tuple(gazept),30, (255, 100, 255), 5);
+	
+	cv2.imshow('TheWorld',scaledWorldColor);
+
+	#######################################################
+	# DIAGNOSTIC DISPLAYS	
+	# Uncomment as needed.							
+	#######################################################
+
+	# Display Blurred Image Used in Thresholding
+	# cv2.imshow("Blurred",blurred1);
+
+	# Display Histogram to Diagnose Skewed Distribution
+	# disp.drawHistogram(blurred1, False);
+
+	# Display Thresholded Image
+	# cv2.imshow('Thresholded',threshed);
+
+	# Display Edges
+	# cv2.imshow("CannyEdgeDetector",edges);
+
+	# Display Hough Circles
+	# cv2.imshow("HoughCircles",houghCircleFrame);
+
+	# Display GoodFeaturesToTrack
+	# cv2.imshow('GoodFeatures', featureFrame);
 
 #cProfile.run('main()','profile.o','cumtime');
