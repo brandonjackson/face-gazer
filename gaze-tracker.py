@@ -885,9 +885,9 @@ def getWorldCoords((eyex, eyey), ax, ay):
 	x,y,xx,yy,xy,xxyy,c listed in that order
 	"""
 
-	x = ax[6] + ax[4]*eyex*eyey + ax[3]*eyey*eyey + ax[2]*eyex*eyex + \
+	x = ax[6] + ax[5]*eyex*eyex*eyey*eyey + ax[4]*eyex*eyey + ax[3]*eyey*eyey + ax[2]*eyex*eyex + \
 		ax[1]*eyey + ax[0]*eyex;
-	y = ay[6] + ay[4]*eyex*eyey + ay[3]*eyey*eyey + ay[2]*eyex*eyex + \
+	y = ay[6] + ay[5]*eyex*eyex*eyey*eyey + ay[4]*eyex*eyey + ay[3]*eyey*eyey + ay[2]*eyex*eyex + \
 		ay[1]*eyey + ay[0]*eyex;
 	return [x,y];
 
@@ -943,6 +943,12 @@ world_initialized = False;
 done = False;
 eyePoints_initialized = False;
 eyedata_initialized = False;
+done_accum = False;
+
+scaledxmin = 0; 
+scaledymin = 350; 
+scaledxmax = 100; 
+scaledymax = 550; 
 
 while True:
 	i = i+1;
@@ -975,10 +981,8 @@ while True:
 			cv2.circle(featureFrame,(x,y),3,(0, 255, 0));
 	cv2.imshow('GoodFeatures', featureFrame);
 
-
-	# frame = cv.BoundingRect(corners, update=0)
 	# remove pixels not centered on eye 
-	scaledFrame = scaledFrame[0:350, 100:550];
+	scaledFrame = scaledFrame[scaledymin:scaledymax, scaledxmin:scaledxmax];
 	
 	if eyedata_initialized == False:
 		eyellipse = np.ones(scaledFrame.shape)*255;
@@ -1053,59 +1057,46 @@ while True:
 	#loc = est_pupil_template(scaledFrame, maxr, maxr);
 	#cv2.circle(pupilFrame, loc, 10, (50, 255, 100));
 	cv2.imshow("HoughCircles",pupilFrame);
-	
-	# AN EXPERIMENT WITH GRAY PROJECTION
-	# if i is 100:
-	# 	horizontal_sum=np.squeeze(np.sum(threshed,axis=1));
-	# 	print horizontal_sum.shape;
-	# 	vertical_sum=np.squeeze(np.sum(threshed,axis=0));
-	# 	print vertical_sum.shape;
-	# 	print len(range(0,400));
-	# 	print len(range(0,500));
-	# 	plt.figure(1);
-	# 	plt.plot(range(0,400),horizontal_sum);
-	# 	plt.figure(2);
-	# 	plt.plot(range(0,500),vertical_sum);
-	# 	plt.show();
-
 
 	# Blur, then apply canny edge detection
 	blurred = cv2.GaussianBlur(threshed,(7,7),1);
-	# note: Brandon's original code didn't use the blurred image
-	# but for an estimate the other functions work better using it 
 	edges = cv2.Canny(blurred,15,30);
 	cv2.imshow("CannyEdgeDetector",edges);
 	
 	edgePoints = np.argwhere(edges>0);
+	gotedgePoints = False;
 
 	# needs to be more robust
+	# if the edges were defined in the canny image try to find the pupil
 	if edgePoints.shape[0] > 6:
+		gotedgePoints = True;
 		ellipseBox = cv2.fitEllipse(edgePoints);
-		eBox = tuple([tuple([ellipseBox[0][1],ellipseBox[0][0]]),tuple([ellipseBox[1][1],ellipseBox[1][0]]),ellipseBox[2]*-1]);
+		eBox = tuple([tuple([ellipseBox[0][1],ellipseBox[0][0]]),\
+		tuple([ellipseBox[1][1],ellipseBox[1][0]]),ellipseBox[2]*-1]);
+		
 		ellipseFrame = scaledFrame.copy();
 		ellipseFrame = cv2.cvtColor(ellipseFrame,cv.CV_GRAY2BGR);
 		cv2.ellipse(ellipseFrame,eBox,(0, 255, 0));
-		center = eBox[0];
-		center = tuple((np.asarray(eBox[0])).astype(int));
+		
+		# the center of the elipse is our pupil estimate
+		center = np.asarray(eBox[0], dtype=np.int32);
+		center = np.around(center);
+		center = tuple(center);
 		cv2.circle(ellipseFrame, center, 3,(255,0,0));
 		cv2.imshow("ellipseFit",ellipseFrame);
 
 
+	# print a message to indicate calibration is about to start
 	if i == 10:
 		print "please focus on the red cross in the image."
 		print "now turn your head until you are dizzy";
-		size = 500;
-		#calim = cv.LoadImage("calim.jpg");
-		#calim = np.zeros((size,size), np.uint8);
-		#calim[size/2-10:size/2+10, size/2-10:size/2+10] = 255; 
-		#cv2.imshow("Calibration Image", calim);        
-	  	#templ = cv2.resize(calim,(100,100));
-		#cv2.imshow('template', templ);
 
 	# use data accumulated during calibration constrain ROI
 	# and radius for pupil
-	if i >= 20 and i <= 50:
-		if edgePoints.shape[0] > 6:
+	if i >= 20 and done_accum is False:
+		if gotedgePoints == True:
+			# add the center to eyePoints array and display
+			# accumulated points
 			if eyePoints_initialized is True:
 				eyePoints = np.vstack(\
 					[eyePoints, [center[1],center[0]]]);
@@ -1115,6 +1106,9 @@ while True:
 				eyePoints = np.array(\
 					[[center[1],center[0]]]);
 				eyePoints_initialized = True;	
+	
+		# if there are enough accumulated points to fit an ellipse
+		# fit an ellipse to the points
 		if eyePoints_initialized is True and eyePoints.shape[0] > 6:
 			ellipseBox = cv2.fitEllipse(eyePoints);
 			eBox = tuple([tuple([ellipseBox[0][1],\
@@ -1123,13 +1117,19 @@ while True:
 			cv2.ellipse(ellipseFrame,eBox,(0, 0, 255));
 			cv2.imshow("ellipseFit",ellipseFrame);
 			
-		if i == 50:
+		# if calibration is done then accumulation is done
+		if done:
+			done_accum = True;
+			
+			# show the elipse in a new image frame
 			dat = np.ones(scaledFrame.shape);
 			dat = dat.astype(np.uint8);
 			cv2.ellipse(dat,eBox,0);
 			cv2.ellipse(eyellipse,eBox,0);
 			cv2.imshow("eyellipse",eyellipse);
 			
+			# find the points on the elipse and construce a
+			# upright bounding box around them
 			edgePoints = np.argwhere(dat==0);
 			maxvals = np.amax(edgePoints, axis=0);
 			minvals = np.amin(edgePoints, axis=0);
@@ -1143,7 +1143,12 @@ while True:
 			newmaxvals = minvals + [newheight,newwidth];
 			
 			print newminvals;
-			print newmaxvals; 
+			print newmaxvals;
+			
+			scaledxmin = newminvals[0]; 
+			scaledymin = newminvals[1]; 
+			scaledxmax = newmaxvals[0]; 
+			scaledymax = newmaxvals[1]; 
 			#contours, hierarchy = cv2.findContours(dat,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE);
 			#bBox = cv2.boundingRect(contours[0]);	
 			#cv2.rectangle(eyellipse,(minvals[1],minvals[0]),\
