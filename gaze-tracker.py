@@ -14,7 +14,7 @@ import math
 from collections import deque
 import cProfile
 
-import numpy
+import numpy as np
 import cv2
 import cv2.cv as cv
 import Image
@@ -76,9 +76,9 @@ class FaceDetector:
 
 		# Data structure to hold frame info
 		rects = {
-			'face': numpy.array([],dtype=numpy.int32),
-			'eyeLeft': numpy.array([],dtype=numpy.int32),
-			'eyeRight': numpy.array([],dtype=numpy.int32)
+			'face': np.array([],dtype=np.int32),
+			'eyeLeft': np.array([],dtype=np.int32),
+			'eyeRight': np.array([],dtype=np.int32)
 		};
 		
 		# Detect face if old faceRect not provided
@@ -102,10 +102,10 @@ class FaceDetector:
 		faceDiameter = y2-y1;
 		
 		# Extract eyes region of interest (ROI), cropping mouth and hair
-		eyeBBox = numpy.array([x1,
+		eyeBBox = np.array([x1,
 		                      (y1 + (faceDiameter*0.24)),
 		                      x2,
-		                      (y2 - (faceDiameter*0.40))],dtype=numpy.int32);
+		                      (y2 - (faceDiameter*0.40))],dtype=np.int32);
 		
 		                    
 #		eyesY1 = (y1 + (faceDiameter * 0.16));
@@ -130,7 +130,7 @@ class FaceDetector:
 		# Loop over each eye
 		for e in eyeRects:
 			# Adjust coordinates to be in faceRect's coordinate space
-#			e += numpy.array([eyesX1, eyesY1, eyesX1, eyesY1],dtype=numpy.int32);
+#			e += np.array([eyesX1, eyesY1, eyesX1, eyesY1],dtype=np.int32);
 						
 			# Split left and right eyes. Compare eye and face midpoints.
 			eyeMidpointX = (e[0]+e[2])/2.0;
@@ -155,10 +155,10 @@ class FaceDetector:
 		
 		# No Results
 		if len(rects) == 0:
-			return numpy.array([],dtype=numpy.int32);
+			return np.array([],dtype=np.int32);
 		
 		rects[:,2:] += rects[:,:2]; # ? ? ? 
-		rects = numpy.array(rects,dtype=numpy.int32);
+		rects = np.array(rects,dtype=np.int32);
 		return rects;
 	
 	def classifyFace(self,img):
@@ -188,7 +188,7 @@ class FaceDetector:
 		# Loop over each eye
 		for eye in rects:
 			# Adjust coordinates to be in faceRect's coordinate space
-			eye += numpy.array([bBox[0],bBox[1],bBox[0],bBox[1]]);
+			eye += np.array([bBox[0],bBox[1],bBox[0],bBox[1]]);
 
 		return rects;
 
@@ -224,9 +224,9 @@ class FaceModel:
 	
 	# Moving average of position rectangles
 	rectAverage = {
-		'face': numpy.array([]),
-		'eyeLeft': numpy.array([]),
-		'eyeRight': numpy.array([])
+		'face': np.array([]),
+		'eyeLeft': np.array([]),
+		'eyeRight': np.array([])
 	};
 	
 	def add(self,rects):
@@ -250,7 +250,7 @@ class FaceModel:
 
 	def getPreviousFaceRects(self):
 		if len(self.rectHistory['face']) is 0:
-			return numpy.array([],dtype=numpy.int32);
+			return np.array([],dtype=np.int32);
 		else:
 			return self.rectHistory['face'][-1];
 	
@@ -276,7 +276,7 @@ class FaceModel:
 	def clear(self):
 		""" Resets Eye History"""
 		for key,value in self.rectAverage.items():
-			self.rectAverage[key] = numpy.array([],dtype=numpy.int32);
+			self.rectAverage[key] = np.array([],dtype=np.int32);
 			self.rectHistory[key].clear();
 			self.qualityHistory[key].clear();
 
@@ -307,9 +307,9 @@ class FaceModel:
 				continue;
 			self.rectAverage[key] = sum(queue) / len(queue);
 		
-		faceQ = numpy.mean(self.qualityHistory['face']);
-		eyeLeftQ = numpy.mean(self.qualityHistory['eyeLeft']);
-		eyeRightQ = numpy.mean(self.qualityHistory['eyeRight']);
+		faceQ = np.mean(self.qualityHistory['face']);
+		eyeLeftQ = np.mean(self.qualityHistory['eyeLeft']);
+		eyeRightQ = np.mean(self.qualityHistory['eyeRight']);
 		
 #		print 'Quality:    ', faceQ, eyeLeftQ, eyeRightQ;
 #		print 'QHistory: ', self.qualityHistory['face'], self.qualityHistory['eyeLeft'], self.qualityHistory['eyeRight'];
@@ -325,7 +325,7 @@ class Util:
 		Modify image contrast
 		
 		Args:
-			img (numpy array)			Input image array
+			img (np array)			Input image array
 			amount (float or string)  	Either number (e.g. 1.3) or 'auto'
 		"""
 		
@@ -333,11 +333,11 @@ class Util:
 		
 		if amount is 'auto':
 			pilEnhancedIMG = ImageOps.autocontrast(pilIMG, cutoff = 0);
-			return numpy.asarray(pilEnhancedIMG);
+			return np.asarray(pilEnhancedIMG);
 		else:
 			pilContrast = ImageEnhance.Contrast(pilIMG);
 			pilContrasted = pilContrast.enhance(amount);
-			return numpy.asarray(pilContrasted);
+			return np.asarray(pilContrasted);
 
 	@staticmethod
 	def threshold(img, thresh):
@@ -345,11 +345,11 @@ class Util:
 		
 		pilIMG1 = Image.fromarray(img);
 		pilInverted1 = ImageOps.invert(pilIMG1);
-		inverted = numpy.asarray(pilInverted1);
+		inverted = np.asarray(pilInverted1);
 		r, t = cv2.threshold(inverted, thresh, 0, type=cv.CV_THRESH_TOZERO);
 		pilIMG2 = Image.fromarray(t);
 		pilInverted2 = ImageOps.invert(pilIMG2);
-		thresholded = numpy.asarray(pilInverted2);
+		thresholded = np.asarray(pilInverted2);
 		return thresholded;
 
 	
@@ -427,7 +427,7 @@ class Display:
 
 			# Equalize Eye and find Average Eye
 			eyeLeftEqualized = cv2.equalizeHist(eyeLeftBW);
-			#eyeLeftAvg = ((eyeLeftBW.astype(numpy.float32) + eyeLeftEqualized.astype(numpy.float32)) / 2.0).astype(numpy.uint8);
+			#eyeLeftAvg = ((eyeLeftBW.astype(np.float32) + eyeLeftEqualized.astype(np.float32)) / 2.0).astype(np.uint8);
 
 
 			# Eye Contrast Enhancement
@@ -455,7 +455,7 @@ class Display:
 				for c in eyeFeatures:
 					if len(c) is 0:
 						continue;
-					corner = c[0].astype(numpy.int32);#*2;
+					corner = c[0].astype(np.int32);#*2;
 					
 					center = (corner[0], corner[1]);
 					cv2.circle(eyeLeftFeatureMap,center,2,(0, 255, 0),-1);
@@ -471,7 +471,7 @@ class Display:
 # 	# 			
 # 	# 			cornerValues = cornerMap.flatten();
 # 	# 
-# 	# 			hist, bins = numpy.histogram(cornerValues,bins = 50)
+# 	# 			hist, bins = np.histogram(cornerValues,bins = 50)
 # 	# 			width = 0.7*(bins[1]-bins[0])
 # 	# 			center = (bins[:-1]+bins[1:])/2
 # 	# 			plt.bar(center, hist, align = 'center', width = width)
@@ -501,7 +501,7 @@ class Display:
 			if circles is not None and len(circles)>0:
 				#print circles
 				for c in circles[0]:
-					c = c.astype(numpy.int32);
+					c = c.astype(np.int32);
 					
 					center = (c[0], c[1]);
 					#print 'center=',center,', radius=',c[2];
@@ -575,9 +575,9 @@ class Display:
 
 	@staticmethod
 	def drawHistogram(img,color=True,windowName='drawHistogram'):
-		h = numpy.zeros((300,256,3))
+		h = np.zeros((300,256,3))
 		 
-		bins = numpy.arange(256).reshape(256,1)
+		bins = np.arange(256).reshape(256,1)
 		
 		if color:
 			channels =[ (255,0,0),(0,255,0),(0,0,255) ];
@@ -587,12 +587,12 @@ class Display:
 		for ch, col in enumerate(channels):
 			hist_item = cv2.calcHist([img],[ch],None,[256],[0,255])
 			#cv2.normalize(hist_item,hist_item,0,255,cv2.NORM_MINMAX)
-			hist=numpy.int32(numpy.around(hist_item))
-			pts = numpy.column_stack((bins,hist))
+			hist=np.int32(np.around(hist_item))
+			pts = np.column_stack((bins,hist))
 			#if ch is 0:
 			cv2.polylines(h,[pts],False,col)
 		 
-		h=numpy.flipud(h)
+		h=np.flipud(h)
 		 
 		cv2.imshow(windowName,h);
 	
@@ -611,7 +611,7 @@ class Display:
 			# TODO throw error
 			return;
 		rect = rect * DISPLAY_SCALE;
-		x1, y1, x2, y2 = rect.astype(numpy.int32);
+		x1, y1, x2, y2 = rect.astype(np.int32);
 		cv2.rectangle(img, (x1, y1), (x2, y2), color, 2);
 
 class Capture:
@@ -749,9 +749,9 @@ def est_pupil_template(img, minr, maxr):
 	best = w*h;
 	# loop through all possible pupil radii r and all positions x,y
 	for r in range(minr, maxr+1):
-		templ = numpy.ones((4*r,4*r))*255;
+		templ = np.ones((4*r,4*r))*255;
 		templ[r:3*r,r:3*r] = 0;
-		templ = templ.astype(numpy.uint8);
+		templ = templ.astype(np.uint8);
 		
 		cv2.imshow('template', templ);
 		result = cv2.matchTemplate(img, templ,cv.CV_TM_SQDIFF_NORMED); 
@@ -859,19 +859,37 @@ def fit_polynomial_surf(X,Y,Z):
     """
     return x,y,xx,yy,xy,xxyy,c
 
-def getWorldCoords((eyex, eyey) ax, ay):
+def calibrate(eyepts, worldpts):
+	"""
+	take a list of eye coords [[x,y], [x,y]...] and world coords and
+	fit a 2nd degree polynomial surface to them
+	"""
+	worldx = np.array(worldpts)[:,0];	
+	worldy = np.array(worldpts)[:,1];	
+	eyex = np.array(eyepts)[:,0];	
+	eyey = np.array(eyepts)[:,1];	
+
+	xcoeff = fit_polynomial_surf(eyex, eyey, worldx);
+	ycoeff = fit_polynomial_surf(eyex, eyey, worldy);
+
+	print "xcoeff";	
+	print xcoeff;	
+	print "ycoeff";	
+	print ycoeff;	
+	return xcoeff, ycoeff;
+ 
+def getWorldCoords((eyex, eyey), ax, ay):
 	"""
 	Returns the world position x,y from the given eye coordinates
 	using the coefficients matrix a with coefficients for terms
 	x,y,xx,yy,xy,xxyy,c listed in that order
 	"""
 
-#	x = ax[6] + ax[4]*eyex*eyey + ax[3]*eyey*eyey + ax[2]*eyex*eyex + \
-#		ax[1]*eyey + ax[0]*eyex;
-#	y = ay[6] + ay[4]*eyex*eyey + ay[3]*eyey*eyey + ay[2]*eyex*eyex + \
-#		ay[1]*eyey + ay[0]*eyex;
-#	return [x,y];
-	return (50,50);
+	x = ax[6] + ax[4]*eyex*eyey + ax[3]*eyey*eyey + ax[2]*eyex*eyex + \
+		ax[1]*eyey + ax[0]*eyex;
+	y = ay[6] + ay[4]*eyex*eyey + ay[3]*eyey*eyey + ay[2]*eyex*eyex + \
+		ay[1]*eyey + ay[0]*eyex;
+	return [x,y];
 
 
  
@@ -920,9 +938,7 @@ i = 0;
 # make a dynamically cropped frame
 crop = [0,0,frameEye.shape[1], frameEye.shape[0]];
 
-#eyepts = [(0,0)];
 eyepts_initialized = False;
-#worldpts = [(0,0)];
 world_initialized = False;
 done = False;
 eyePoints_initialized = False;
@@ -954,7 +970,7 @@ while True:
 	corners = cv2.goodFeaturesToTrack(scaledFrame, 50, .1, 20);
 	featureFrame = cv2.cvtColor(scaledFrame,cv.CV_GRAY2BGR);
 	if corners is not None:
-		corners = numpy.reshape(corners, (-1,2));
+		corners = np.reshape(corners, (-1,2));
 		for x, y in corners:
 			cv2.circle(featureFrame,(x,y),3,(0, 255, 0));
 	cv2.imshow('GoodFeatures', featureFrame);
@@ -965,8 +981,8 @@ while True:
 	scaledFrame = scaledFrame[0:350, 100:550];
 	
 	if eyedata_initialized == False:
-		eyellipse = numpy.ones(scaledFrame.shape)*255;
-		eyellipse = eyellipse.astype(numpy.uint8);
+		eyellipse = np.ones(scaledFrame.shape)*255;
+		eyellipse = eyellipse.astype(np.uint8);
 		eyedata_initialized = True;
 		
 	blurred1 = cv2.GaussianBlur(scaledFrame,(21,21),1);
@@ -974,12 +990,12 @@ while True:
 
 	disp.drawHistogram(blurred1, False);
 
-	minval = numpy.min(blurred1);
+	minval = np.min(blurred1);
 
 	threshval = minval + 25;
 	threshed_retval,threshed = cv2.threshold(blurred1, threshval, 
 		maxval=255, type=cv.CV_THRESH_BINARY);
-	matr = numpy.where(threshed == threshval);	
+	matr = np.where(threshed == threshval);	
 	threshed[matr] = 255;
 	cv2.imshow('Thresholded',threshed);
 
@@ -1010,12 +1026,12 @@ while True:
 	# Brandon - why do you need both conditionals here?
 	if circles is not None and len(circles)>0:
 		for c in circles[0]:
-			c = c.astype(numpy.int32);
+			c = c.astype(np.int32);
 			cv2.circle(pupilFrame,(c[0],c[1]),c[2],(0, 255, 0));
 
 	if circles is not None and len(circles)>0:
 		c, r = bestcircle(threshed, circles, minr, maxr);
-		c = c.astype(numpy.int32);
+		c = c.astype(np.int32);
 		pupROI = [c[0]-2*r,c[1]-2*r, c[0]+2*r,c[1]+2*r];
 		cv2.circle(pupilFrame, (c[0]+2,c[1]+2), c[2], (255, 100, 255));
 		cv2.rectangle(pupilFrame, (c[0]-2*r,c[1]-2*r), (c[0]+2*r,c[1]+2*r), (255, 100, 255));
@@ -1040,9 +1056,9 @@ while True:
 	
 	# AN EXPERIMENT WITH GRAY PROJECTION
 	# if i is 100:
-	# 	horizontal_sum=numpy.squeeze(numpy.sum(threshed,axis=1));
+	# 	horizontal_sum=np.squeeze(np.sum(threshed,axis=1));
 	# 	print horizontal_sum.shape;
-	# 	vertical_sum=numpy.squeeze(numpy.sum(threshed,axis=0));
+	# 	vertical_sum=np.squeeze(np.sum(threshed,axis=0));
 	# 	print vertical_sum.shape;
 	# 	print len(range(0,400));
 	# 	print len(range(0,500));
@@ -1060,7 +1076,7 @@ while True:
 	edges = cv2.Canny(blurred,15,30);
 	cv2.imshow("CannyEdgeDetector",edges);
 	
-	edgePoints = numpy.argwhere(edges>0);
+	edgePoints = np.argwhere(edges>0);
 
 	# needs to be more robust
 	if edgePoints.shape[0] > 6:
@@ -1070,7 +1086,7 @@ while True:
 		ellipseFrame = cv2.cvtColor(ellipseFrame,cv.CV_GRAY2BGR);
 		cv2.ellipse(ellipseFrame,eBox,(0, 255, 0));
 		center = eBox[0];
-		center = tuple((numpy.asarray(eBox[0])).astype(int));
+		center = tuple((np.asarray(eBox[0])).astype(int));
 		cv2.circle(ellipseFrame, center, 3,(255,0,0));
 		cv2.imshow("ellipseFit",ellipseFrame);
 
@@ -1080,7 +1096,7 @@ while True:
 		print "now turn your head until you are dizzy";
 		size = 500;
 		#calim = cv.LoadImage("calim.jpg");
-		#calim = numpy.zeros((size,size), numpy.uint8);
+		#calim = np.zeros((size,size), np.uint8);
 		#calim[size/2-10:size/2+10, size/2-10:size/2+10] = 255; 
 		#cv2.imshow("Calibration Image", calim);        
 	  	#templ = cv2.resize(calim,(100,100));
@@ -1091,12 +1107,12 @@ while True:
 	if i >= 20 and i <= 50:
 		if edgePoints.shape[0] > 6:
 			if eyePoints_initialized is True:
-				eyePoints = numpy.vstack(\
+				eyePoints = np.vstack(\
 					[eyePoints, [center[1],center[0]]]);
 				eyellipse[center[1],center[0]] = 0;
 				cv2.imshow("eyellipse",eyellipse);
 			else:
-				eyePoints = numpy.array(\
+				eyePoints = np.array(\
 					[[center[1],center[0]]]);
 				eyePoints_initialized = True;	
 		if eyePoints_initialized is True and eyePoints.shape[0] > 6:
@@ -1108,15 +1124,15 @@ while True:
 			cv2.imshow("ellipseFit",ellipseFrame);
 			
 		if i == 50:
-			dat = numpy.ones(scaledFrame.shape);
-			dat = dat.astype(numpy.uint8);
+			dat = np.ones(scaledFrame.shape);
+			dat = dat.astype(np.uint8);
 			cv2.ellipse(dat,eBox,0);
 			cv2.ellipse(eyellipse,eBox,0);
 			cv2.imshow("eyellipse",eyellipse);
 			
-			edgePoints = numpy.argwhere(dat==0);
-			maxvals = numpy.amax(edgePoints, axis=0);
-			minvals = numpy.amin(edgePoints, axis=0);
+			edgePoints = np.argwhere(dat==0);
+			maxvals = np.amax(edgePoints, axis=0);
+			minvals = np.amin(edgePoints, axis=0);
 			print minvals;
 			print maxvals;	
 			height = maxvals[1]-minvals[1];
@@ -1138,40 +1154,41 @@ while True:
 	# assume by i == 20 the user is looking at the gray square
 	if i > 20 and not done:
 		print "calibrating";
-		#worldpt = findcalim(scaledWorld, templ);
 		retval, worldcenters = \
 		cv2.findCirclesGridDefault(scaledWorld, (4,11), \
 		flags=cv2.CALIB_CB_ASYMMETRIC_GRID); 
 		print "retval is " + str(retval);
 		if retval:
 			worldpt = worldcenters.sum(0)/worldcenters.shape[0];
-				  #worldcenters.sum(1)/worldcenters.shape[1]);
-			print worldpt[0];
-			scaledWorld = cv2.cvtColor(scaledWorld, cv.CV_GRAY2BGR);
 			cv2.circle(scaledWorld, tuple(worldpt[0]), \
 				3, (255, 100, 255));
-			print center;
-			print worldpt;
 			# if the pupil center was calculated then try to store a point
 			if edgePoints.shape[0] > 6:
 				# find the calibration image 
 				if eyepts_initialized == True:
-					worldpts.append(tuple(worldpt[0]));
-					eyepts.append(center);
+					worldpts.append([worldpt[0][0], \
+							 worldpt[0][1]]);
+					eyepts.append([center[0],center[1]]);
 				else:
-					eyepts = [center];
-					worldpts = [tuple(worldpt[0])];
+					eyepts = [[center[0],center[1]]];
+					worldpts = [[worldpt[0][0], \
+							 worldpt[0][1]]];
 					eyepts_initialized = True;
-			if eyepts is not None and len(eyepts) > 10:
+			if eyepts is not None and len(eyepts) > 200:
 				done = True
 				print "worldpts";	
-				print worldpts;	
+				print worldpts;
 				print "eyepts";	
 				print eyepts;	
+				xcoeff, ycoeff = calibrate(eyepts, worldpts);
 	
 	if done == True:
-		gazept = getWorldCoords(center, 1, 1);
-		cv2.circle(scaledWorld,gazept,2,(0, 255, 200));
+		gazept = getWorldCoords(center, xcoeff, ycoeff);
+		gazept = np.asarray(gazept, dtype=np.int32);
+		gazept = np.around(gazept);
+		print gazept;
+		cv2.circle(scaledWorld, (50,50),7, (255, 100, 255));
+		cv2.circle(scaledWorld, tuple(gazept),7, (255, 100, 255));
 			
 	cv2.imshow('TheWorld',scaledWorld);
 
