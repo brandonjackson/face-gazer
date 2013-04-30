@@ -947,7 +947,7 @@ done_accum = False;
 eyepts = None;
 
 scaledxmin = 0; 
-scaledymin = 100; 
+scaledymin = 130; 
 scaledxmax = 450; 
 scaledymax = 350; 
 
@@ -976,14 +976,13 @@ while True:
 	scaledWorld = cv2.cvtColor(scaledWorld,cv.CV_BGR2GRAY);
 	#cv2.imshow('OrigEye',scaledFrame);
 
-
+	#
 	corners = cv2.goodFeaturesToTrack(scaledFrame, 50, .1, 20);
 	featureFrame = cv2.cvtColor(scaledFrame,cv.CV_GRAY2BGR);
 	if corners is not None:
 		corners = np.reshape(corners, (-1,2));
 		for x, y in corners:
 			cv2.circle(featureFrame,(x,y),3,(0, 255, 0));
-	cv2.imshow('GoodFeatures', featureFrame);
 
 	# remove pixels not centered on eye 
 	scaledFrame = scaledFrame[scaledymin:scaledymax, scaledxmin:scaledxmax];
@@ -992,20 +991,24 @@ while True:
 		eyellipse = np.ones(scaledFrame.shape)*255;
 		eyellipse = eyellipse.astype(np.uint8);
 		eyedata_initialized = True;
-		
+
+	#######################################################
+	# THRESHOLDING 										  #
+	#######################################################
+
+	# Blur image, eliminating high spatial frequency dark spots
 	blurred1 = cv2.GaussianBlur(scaledFrame,(21,21),1);
-	cv2.imshow("Blurred",blurred1);
 
-	disp.drawHistogram(blurred1, False);
 
+	# Dynamic threshold: slightly higher than lowest light intensity
 	minval = np.min(blurred1);
-
 	threshval = minval + 25;
+
+	# Run threshold, replace gray with white
 	threshed_retval,threshed = cv2.threshold(blurred1, threshval, 
 		maxval=255, type=cv.CV_THRESH_BINARY);
-	matr = np.where(threshed == threshval);	
+	matr = np.where(threshed == threshval);
 	threshed[matr] = 255;
-	cv2.imshow('Thresholded',threshed);
 
 	# use on center - off surround template to quickly estimate pupil
 	# center over all x,y and pupil radius ranging from minr to maxr 
@@ -1030,19 +1033,20 @@ while True:
 	circles = cv2.HoughCircles(threshed, cv.CV_HOUGH_GRADIENT, 2, \
 		minDist, param1=30, param2=10,minRadius=minr,maxRadius=maxr);
 	
-	pupilFrame = cv2.cvtColor(scaledFrame,cv.CV_GRAY2BGR);
+	houghCircleFrame = cv2.cvtColor(scaledFrame,cv.CV_GRAY2BGR);
+	
 	# Brandon - why do you need both conditionals here?
 	if circles is not None and len(circles)>0:
 		for c in circles[0]:
 			c = c.astype(np.int32);
-			cv2.circle(pupilFrame,(c[0],c[1]),c[2],(0, 255, 0));
+			cv2.circle(houghCircleFrame,(c[0],c[1]),c[2],(0, 255, 0));
 
 	if circles is not None and len(circles)>0:
 		c, r = bestcircle(threshed, circles, minr, maxr);
 		c = c.astype(np.int32);
 		pupROI = [c[0]-2*r,c[1]-2*r, c[0]+2*r,c[1]+2*r];
-		cv2.circle(pupilFrame, (c[0]+2,c[1]+2), c[2], (255, 100, 255));
-		cv2.rectangle(pupilFrame, (c[0]-2*r,c[1]-2*r), (c[0]+2*r,c[1]+2*r), (255, 100, 255));
+		cv2.circle(houghCircleFrame, (c[0]+2,c[1]+2), c[2], (255, 100, 255));
+		cv2.rectangle(houghCircleFrame, (c[0]-2*r,c[1]-2*r), (c[0]+2*r,c[1]+2*r), (255, 100, 255));
 
 		blurredROI = cv2.GaussianBlur(threshed, (15,15) ,1);#[pupROI[1]:pupROI[3], pupROI[0]:pupROI[2]], (7,7) ,1);
 		edgesROI = cv2.Canny(blurredROI,15,30);
@@ -1054,18 +1058,17 @@ while True:
 			if retval > best:
 				bestcnt = cnt;	
 		edgesROI = cv2.cvtColor(edgesROI,cv.CV_GRAY2BGR);
-		cv2.drawContours(edgesROI,bestcnt,-1,(255,255,0),-1);
-		cv2.imshow("contours",edgesROI);
-	
+#		cv2.drawContours(edgesROI,bestcnt,-1,(255,255,0),-1);
+#		cv2.imshow("contours",edgesROI);
+
 	# estimate pupil using template matching
 	#loc = est_pupil_template(scaledFrame, maxr, maxr);
-	#cv2.circle(pupilFrame, loc, 10, (50, 255, 100));
-	cv2.imshow("HoughCircles",pupilFrame);
+	#cv2.circle(houghCircleFrame, loc, 10, (50, 255, 100));
+	
 
 	# Blur, then apply canny edge detection
 	blurred = cv2.GaussianBlur(threshed,(7,7),1);
 	edges = cv2.Canny(blurred,15,30);
-	cv2.imshow("CannyEdgeDetector",edges);
 	
 	edgePoints = np.argwhere(edges>0);
 	gotedgePoints = False;
@@ -1089,6 +1092,29 @@ while True:
 		cv2.circle(ellipseFrame, center, 3,(255,0,0));
 		cv2.imshow("ellipseFit",ellipseFrame);
 
+
+	#######################################################
+	# DIAGNOSTIC DISPLAYS	
+	# Uncomment as needed.							
+	#######################################################
+
+	# Display Blurred Image Used in Thresholding
+	# cv2.imshow("Blurred",blurred1);
+
+	# Display Histogram to Diagnose Skewed Distribution
+	# disp.drawHistogram(blurred1, False);
+
+	# Display Thresholded Image
+	# cv2.imshow('Thresholded',threshed);
+
+	# Display Edges
+	# cv2.imshow("CannyEdgeDetector",edges);
+
+	# Display Hough Circles
+	# cv2.imshow("HoughCircles",houghCircleFrame);
+
+	# Display GoodFeaturesToTrack
+	# cv2.imshow('GoodFeatures', featureFrame);
 
 	# print a message to indicate calibration is about to start
 	if i == 10:
@@ -1177,6 +1203,7 @@ while True:
 				# find the calibration image 
 				if eyepts_initialized == True:
 					print str(len(eyepts));
+					cv2.circle(frameWorld, tuple([worldpt[0][0],worldpt[0][1]]),5, (0, 0, 255));
 					worldpts.append([worldpt[0][0], \
 							 worldpt[0][1]]);
 					eyepts.append([center[0],center[1]]);
