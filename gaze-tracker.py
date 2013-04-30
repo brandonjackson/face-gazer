@@ -1188,19 +1188,25 @@ while True:
 	# 		cv2.imshow("eyellipse",eyellipse);
 	
 
+	#######################################################
+	# CALIBRATION						
+	#######################################################
+
 	# assume by i == 20 the user is looking at the gray square
 	if i > 20 and not done:
-		retval, worldcenters = \
+
+		# Search for target
+		targetFound, worldcenters = \
 		cv2.findCirclesGridDefault(scaledWorldBW, (4,11), \
 		flags=cv2.CALIB_CB_ASYMMETRIC_GRID); 
-		#print "retval is " + str(retval);
-		print '...';
-		if retval:
-			
+
+		# Calibration target found
+		if targetFound:
 			worldpt = worldcenters.sum(0)/worldcenters.shape[0];
 			cv2.circle(scaledWorldBW, tuple(worldpt[0]), \
 				3, (255, 100, 255));
-			# if the pupil center was calculated then try to store a point
+			
+			# if the pupil center was calculated, try to store a point
 			if edgePoints.shape[0] > 6:
 				# find the calibration image 
 				if eyepts_initialized == True:
@@ -1214,14 +1220,23 @@ while True:
 					worldpts = [[worldpt[0][0], \
 							 worldpt[0][1]]];
 					eyepts_initialized = True;
+
+			# If enough data collected, run calibration routine
 			if eyepts is not None and len(eyepts) > 250:
 				done = True
-				print "worldpts";	
+				print "worldpts";
 				print worldpts;
 				print "eyepts";	
 				print eyepts;	
 				xcoeff, ycoeff = calibrate(eyepts, worldpts);
-	
+		
+		# Calibration target not found
+		else:
+			print '...';
+
+	#######################################################
+	# MAIN LOOP, POST-CALIBRATION					
+	#######################################################
 	if done == True:
 		gazept = getWorldCoords(center, xcoeff, ycoeff);
 		gazept = np.asarray(gazept, dtype=np.int32);
