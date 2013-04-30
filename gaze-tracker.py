@@ -944,17 +944,21 @@ done = False;
 eyePoints_initialized = False;
 eyedata_initialized = False;
 done_accum = False;
+eyepts = None;
 
 scaledxmin = 0; 
-scaledymin = 350; 
-scaledxmax = 100; 
-scaledymax = 550; 
+scaledymin = 100; 
+scaledxmax = 450; 
+scaledymax = 350; 
 
 while True:
 	i = i+1;
 
 	frameWorldRetVal, frameWorld = cameraWorld.read();
+
 	scaledWorld = cv2.resize(frameWorld,None,fx=0.5,fy=0.5);
+
+	frameWorld = cv2.resize(frameWorld,None,fx=0.5,fy=0.5);
 
 	frameEyeRetVal, frameEye = cameraEye.read();
 	# eye camera returns frames that are 800px high by 1280px wide
@@ -1093,77 +1097,78 @@ while True:
 
 	# use data accumulated during calibration constrain ROI
 	# and radius for pupil
-	if i >= 20 and done_accum is False:
-		if gotedgePoints == True:
-			# add the center to eyePoints array and display
-			# accumulated points
-			if eyePoints_initialized is True:
-				eyePoints = np.vstack(\
-					[eyePoints, [center[1],center[0]]]);
-				eyellipse[center[1],center[0]] = 0;
-				cv2.imshow("eyellipse",eyellipse);
-			else:
-				eyePoints = np.array(\
-					[[center[1],center[0]]]);
-				eyePoints_initialized = True;	
+	# if i >= 20 and done_accum is False:
+	# 	if gotedgePoints == True:
+	# 		# add the center to eyePoints array and display
+	# 		# accumulated points
+	# 		if eyePoints_initialized is True:
+	# 			eyePoints = np.vstack(\
+	# 				[eyePoints, [center[1],center[0]]]);
+	# 			eyellipse[center[1],center[0]] = 0;
+	# 			cv2.imshow("eyellipse",eyellipse);
+	# 		else:
+	# 			eyePoints = np.array(\
+	# 				[[center[1],center[0]]]);
+	# 			eyePoints_initialized = True;	
 	
-		# if there are enough accumulated points to fit an ellipse
-		# fit an ellipse to the points
-		if eyePoints_initialized is True and eyePoints.shape[0] > 6:
-			ellipseBox = cv2.fitEllipse(eyePoints);
-			eBox = tuple([tuple([ellipseBox[0][1],\
-			ellipseBox[0][0]]),tuple([ellipseBox[1][1],\
-			ellipseBox[1][0]]),ellipseBox[2]*-1]);
-			cv2.ellipse(ellipseFrame,eBox,(0, 0, 255));
-			cv2.imshow("ellipseFit",ellipseFrame);
+	# 	# if there are enough accumulated points to fit an ellipse
+	# 	# fit an ellipse to the points
+	# 	if eyePoints_initialized is True and eyePoints.shape[0] > 6:
+	# 		ellipseBox = cv2.fitEllipse(eyePoints);
+	# 		eBox = tuple([tuple([ellipseBox[0][1],\
+	# 		ellipseBox[0][0]]),tuple([ellipseBox[1][1],\
+	# 		ellipseBox[1][0]]),ellipseBox[2]*-1]);
+	# 		cv2.ellipse(ellipseFrame,eBox,(0, 0, 255));
+	# 		cv2.imshow("ellipseFit",ellipseFrame);
 			
-		# if calibration is done then accumulation is done
-		if done:
-			done_accum = True;
+	# 	# if calibration is done then accumulation is done
+	# 	if done:
+	# 		done_accum = True;
 			
-			# show the elipse in a new image frame
-			dat = np.ones(scaledFrame.shape);
-			dat = dat.astype(np.uint8);
-			cv2.ellipse(dat,eBox,0);
-			cv2.ellipse(eyellipse,eBox,0);
-			cv2.imshow("eyellipse",eyellipse);
+	# 		# show the elipse in a new image frame
+	# 		dat = np.ones(scaledFrame.shape);
+	# 		dat = dat.astype(np.uint8);
+	# 		cv2.ellipse(dat,eBox,0);
+	# 		cv2.ellipse(eyellipse,eBox,0);
+	# 		cv2.imshow("eyellipse",eyellipse);
 			
-			# find the points on the elipse and construce a
-			# upright bounding box around them
-			edgePoints = np.argwhere(dat==0);
-			maxvals = np.amax(edgePoints, axis=0);
-			minvals = np.amin(edgePoints, axis=0);
-			print minvals;
-			print maxvals;	
-			height = maxvals[1]-minvals[1];
-			width = maxvals[0]-minvals[0];
-			newheight = height*2;
-			newwidth = width*2;
-			newminvals = (minvals - minvals/2).astype(int); 
-			newmaxvals = minvals + [newheight,newwidth];
+	# 		# find the points on the elipse and construce a
+	# 		# upright bounding box around them
+	# 		edgePoints = np.argwhere(dat==0);
+	# 		maxvals = np.amax(edgePoints, axis=0);
+	# 		minvals = np.amin(edgePoints, axis=0);
+	# 		print minvals;
+	# 		print maxvals;	
+	# 		height = maxvals[1]-minvals[1];
+	# 		width = maxvals[0]-minvals[0];
+	# 		newheight = height*2;
+	# 		newwidth = width*2;
+	# 		newminvals = (minvals - minvals/2).astype(int); 
+	# 		newmaxvals = minvals + [newheight,newwidth];
 			
-			print newminvals;
-			print newmaxvals;
+	# 		print newminvals;
+	# 		print newmaxvals;
 			
-			scaledxmin = newminvals[0]; 
-			scaledymin = newminvals[1]; 
-			scaledxmax = newmaxvals[0]; 
-			scaledymax = newmaxvals[1]; 
-			#contours, hierarchy = cv2.findContours(dat,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE);
-			#bBox = cv2.boundingRect(contours[0]);	
-			#cv2.rectangle(eyellipse,(minvals[1],minvals[0]),\
-			#	(maxvals[1],maxvals[0]),20);
-			cv2.imshow("eyellipse",eyellipse);
+	# 		scaledxmin = newminvals[0]; 
+	# 		scaledymin = newminvals[1]; 
+	# 		scaledxmax = newmaxvals[0]; 
+	# 		scaledymax = newmaxvals[1]; 
+	# 		#contours, hierarchy = cv2.findContours(dat,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE);
+	# 		#bBox = cv2.boundingRect(contours[0]);	
+	# 		#cv2.rectangle(eyellipse,(minvals[1],minvals[0]),\
+	# 		#	(maxvals[1],maxvals[0]),20);
+	# 		cv2.imshow("eyellipse",eyellipse);
 	
 
 	# assume by i == 20 the user is looking at the gray square
 	if i > 20 and not done:
-		print "calibrating";
 		retval, worldcenters = \
 		cv2.findCirclesGridDefault(scaledWorld, (4,11), \
 		flags=cv2.CALIB_CB_ASYMMETRIC_GRID); 
-		print "retval is " + str(retval);
+		#print "retval is " + str(retval);
+		print '...';
 		if retval:
+			
 			worldpt = worldcenters.sum(0)/worldcenters.shape[0];
 			cv2.circle(scaledWorld, tuple(worldpt[0]), \
 				3, (255, 100, 255));
@@ -1171,6 +1176,7 @@ while True:
 			if edgePoints.shape[0] > 6:
 				# find the calibration image 
 				if eyepts_initialized == True:
+					print str(len(eyepts));
 					worldpts.append([worldpt[0][0], \
 							 worldpt[0][1]]);
 					eyepts.append([center[0],center[1]]);
@@ -1179,7 +1185,7 @@ while True:
 					worldpts = [[worldpt[0][0], \
 							 worldpt[0][1]]];
 					eyepts_initialized = True;
-			if eyepts is not None and len(eyepts) > 200:
+			if eyepts is not None and len(eyepts) > 250:
 				done = True
 				print "worldpts";	
 				print worldpts;
@@ -1192,9 +1198,9 @@ while True:
 		gazept = np.asarray(gazept, dtype=np.int32);
 		gazept = np.around(gazept);
 		print gazept;
-		cv2.circle(scaledWorld, (50,50),7, (255, 100, 255));
-		cv2.circle(scaledWorld, tuple(gazept),7, (255, 100, 255));
+		#cv2.circle(scaledWorld, (50,50),7, (255, 100, 255));
+		cv2.circle(frameWorld, tuple(gazept),25, (255, 100, 255));
 			
-	cv2.imshow('TheWorld',scaledWorld);
+	cv2.imshow('TheWorld',frameWorld);
 
 #cProfile.run('main()','profile.o','cumtime');
