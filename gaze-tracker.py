@@ -38,6 +38,8 @@ DISPLAY_SCALE = 0.3333;
 FACE_SCALE = 0.25;
 EYE_SCALE = 0.33333;
 
+GAZE_RADIUS = 15;
+
 
 class FaceDetector:
 
@@ -74,75 +76,85 @@ class FaceDetector:
 			a dictionary with three elements each representing a rectangle
 		"""
 
-		# Data structure to hold frame info
-		rects = {
-			'face': np.array([],dtype=np.int32),
-			'eyeLeft': np.array([],dtype=np.int32),
-			'eyeRight': np.array([],dtype=np.int32)
-		};
-		
-		# Detect face if old faceRect not provided
-		if faceRect is False or len(faceRect) is 0:
-			faceIMG = frames['face'];
-			faceRects = self.classifyFace(faceIMG);
+		faceIMG = frames['worldBW'];
+		faceRects = self.classifyFace(faceIMG);
 			
-			# Ensure a single face found
-			if len(faceRects) is 1:
-				faceRect = faceRects[0];
-			else:
-				# TODO throw error message
-				print "No Faces / Multiple Faces Found!";
-				return rects;
-			
-		rects['face'] = faceRect;
+		return faceRects;
 
-		# Extract face coordinates, calculate center and diameter
-		x1,y1,x2,y2 = rects['face'];
-		faceCenter = (((x1+x2)/2.0), ((y1+y2)/2.0));
-		faceDiameter = y2-y1;
+		# # Data structure to hold frame info
+		# rects = {
+		# 	'face': np.array([],dtype=np.int32)
+		# };
 		
-		# Extract eyes region of interest (ROI), cropping mouth and hair
-		eyeBBox = np.array([x1,
-		                      (y1 + (faceDiameter*0.24)),
-		                      x2,
-		                      (y2 - (faceDiameter*0.40))],dtype=np.int32);
+		# # Detect face if old faceRect not provided
+		# if faceRect is False or len(faceRect) is 0:
+		# 	faceIMG = frames['worldBW'];
+		# 	faceRects = self.classifyFace(faceIMG);
+			
+		# 	return faceRects;
+
+		# 	# Ensure a single face found
+		# 	if len(faceRects) is 1:
+		# 		faceRect = faceRects[0];
+		# 	else:
+		# 		# TODO throw error message
+		# 		print "No Faces / Multiple Faces Found!";
+		# 		return rects;
+			
+		# rects['face'] = faceRect;
+
+
+#		# EYE DETECTION 
+#		# [not currently used]
+#
+#
+# 		# Extract face coordinates, calculate center and diameter
+# 		x1,y1,x2,y2 = rects['face'];
+# 		faceCenter = (((x1+x2)/2.0), ((y1+y2)/2.0));
+# 		faceDiameter = y2-y1;
+		
+# 		# Extract eyes region of interest (ROI), cropping mouth and hair
+# 		eyeBBox = np.array([x1,
+# 		                      (y1 + (faceDiameter*0.24)),
+# 		                      x2,
+# 		                      (y2 - (faceDiameter*0.40))],dtype=np.int32);
 		
 		                    
-#		eyesY1 = (y1 + (faceDiameter * 0.16));
-#		eyesY2 = (y2 - (faceDiameter * 0.32));
-#		eyesX1 = x1 * EYE_SCALE;
-#		eyesX2 = x2 * EYE_SCALE;
-#		eyesROI = img[eyesY1:eyesY2, x1:x2];
+# #		eyesY1 = (y1 + (faceDiameter * 0.16));
+# #		eyesY2 = (y2 - (faceDiameter * 0.32));
+# #		eyesX1 = x1 * EYE_SCALE;
+# #		eyesX2 = x2 * EYE_SCALE;
+# #		eyesROI = img[eyesY1:eyesY2, x1:x2];
 
-		# Search for eyes in ROI
-		eyeRects = self.classifyEyes(frames['eyes'],eyeBBox);
-#		print eyeRects;
+# 		# Search for eyes in ROI
+# 		eyeRects = self.classifyEyes(frames['eyes'],eyeBBox);
+# #		print eyeRects;
 		
-		# Ensure (at most) two eyes found
-		if len(eyeRects) > 2:
-			# TODO throw error message (and perhaps return?)
-			print "Multiple Eyes Found!";
-			# TODO get rid of extras by either:
-			#	a) using two largest rects or
-			#	b) finding two closest matches to average eyes
+# 		# Ensure (at most) two eyes found
+# 		if len(eyeRects) > 2:
+# 			# TODO throw error message (and perhaps return?)
+# 			print "Multiple Eyes Found!";
+# 			# TODO get rid of extras by either:
+# 			#	a) using two largest rects or
+# 			#	b) finding two closest matches to average eyes
 			
 
-		# Loop over each eye
-		for e in eyeRects:
-			# Adjust coordinates to be in faceRect's coordinate space
-#			e += np.array([eyesX1, eyesY1, eyesX1, eyesY1],dtype=np.int32);
+# 		# Loop over each eye
+# 		for e in eyeRects:
+# 			# Adjust coordinates to be in faceRect's coordinate space
+# #			e += np.array([eyesX1, eyesY1, eyesX1, eyesY1],dtype=np.int32);
 						
-			# Split left and right eyes. Compare eye and face midpoints.
-			eyeMidpointX = (e[0]+e[2])/2.0;
-			if eyeMidpointX < faceCenter[0]:
-				rects['eyeLeft'] = e; # TODO prevent overwriting
-			else:
-				rects['eyeRight'] = e;
-		# TODO error checking
-		# TODO calculate signal quality
-		print 'final rects=',rects
+# 			# Split left and right eyes. Compare eye and face midpoints.
+# 			eyeMidpointX = (e[0]+e[2])/2.0;
+# 			if eyeMidpointX < faceCenter[0]:
+# 				rects['eyeLeft'] = e; # TODO prevent overwriting
+# 			else:
+# 				rects['eyeRight'] = e;
+# 		# TODO error checking
+# 		# TODO calculate signal quality
+# 		print 'final rects=',rects
 		
-		return rects;
+		#return rects;
 
 	def classify(self, img, cascade, minSizeX=40):
 		"""Run Cascade Classifier on Image"""
@@ -163,8 +175,9 @@ class FaceDetector:
 	
 	def classifyFace(self,img):
 		"""Run Face Cascade Classifier on Image"""
-		rects = self.classify(img,self.faceClassifier,img.shape[1]*FACE_MIN_SIZE);
-		return rects/FACE_SCALE;
+		rects = self.classify(img,self.faceClassifier,100);#,img.shape[1]*FACE_MIN_SIZE);
+		return rects;
+		#return rects/FACE_SCALE;
 	
 	def classifyEyes(self,img,bBox):
 		"""Run Eyes Cascade Classifier on Image"""
@@ -209,24 +222,18 @@ class FaceModel:
 	
 	QUALITY_QUEUE_MAXLEN = 30;
 	qualityHistory = {
-		'face':deque(maxlen=QUALITY_QUEUE_MAXLEN),
-		'eyeLeft':deque(maxlen=QUALITY_QUEUE_MAXLEN),
-		'eyeRight':deque(maxlen=QUALITY_QUEUE_MAXLEN)
+		'face':deque(maxlen=QUALITY_QUEUE_MAXLEN)
 	};
 	
 	# Queues storing most recent position rectangles, used to calculate
 	# moving averages
 	rectHistory = {
-		'face': deque(maxlen=QUEUE_MAXLEN),
-		'eyeLeft': deque(maxlen=QUEUE_MAXLEN),
-		'eyeRight': deque(maxlen=QUEUE_MAXLEN)
+		'face': deque(maxlen=QUEUE_MAXLEN)
 	};
 	
 	# Moving average of position rectangles
 	rectAverage = {
-		'face': np.array([]),
-		'eyeLeft': np.array([]),
-		'eyeRight': np.array([])
+		'face': np.array([])
 	};
 	
 	def add(self,rects):
@@ -254,24 +261,10 @@ class FaceModel:
 		else:
 			return self.rectHistory['face'][-1];
 	
-	def getEyeRects(self):
-		"""Get array of eye rectangles"""
-		return [self.rectAverage['eyeLeft'], self.rectAverage['eyeRight']];
 	
 	def getFaceRect(self):
 		"""Get face rectangle"""
 		return self.rectAverage['face'];
-
-	def getEyeLine(self):
-		"""Returns Points to create line along axis of eyes"""
-		left,right = self.getEyeRects();
-		
-		if len(left) is not 4 or len(right) is not 4:
-			return [(0,0),(0,0)];
-		
-		leftPoint = (left[0], ((left[1] + left[3])/2));
-		rightPoint = (right[2], ((right[1] + right[3])/2));
-		return [leftPoint,rightPoint];
 		
 	def clear(self):
 		""" Resets Eye History"""
@@ -308,8 +301,6 @@ class FaceModel:
 			self.rectAverage[key] = sum(queue) / len(queue);
 		
 		faceQ = np.mean(self.qualityHistory['face']);
-		eyeLeftQ = np.mean(self.qualityHistory['eyeLeft']);
-		eyeRightQ = np.mean(self.qualityHistory['eyeRight']);
 		
 #		print 'Quality:    ', faceQ, eyeLeftQ, eyeRightQ;
 #		print 'QHistory: ', self.qualityHistory['face'], self.qualityHistory['eyeLeft'], self.qualityHistory['eyeRight'];
@@ -378,6 +369,59 @@ class Util:
 		bgr = cv2.cvtColor(hsv,cv.CV_HSV2BGR);
 		return bgr;
 
+class PersonModel:
+
+	@staticmethod
+	def isFaceGazing(gaze,faceRects):
+		if len(faceRects) is 0:
+			return False;
+
+		distances = np.zeros((len(faceRects),1));
+		i = 0;
+		for face in faceRects:
+			x1,y1,x2,y2 = face;
+			faceCenter = (((x1+x2)/2.0), ((y1+y2)/2.0));
+			distances[i] = math.sqrt((faceCenter[0] - gaze[0])**2 + (faceCenter[1] - gaze[1])**2)
+			i = i + 1;
+		minDistance = np.amin(distances);
+
+		print distances.flatten();
+
+		return minDistance < 100;
+
+	@staticmethod
+	def getBodyRects(faceRects):
+
+		if len(faceRects) == 0:
+			return [[]]
+
+		bodyRects = np.zeros((faceRects.shape[0],4));
+
+		i = 0;
+		for face in faceRects:
+
+			 # (x1,y1) is top left (TL) corner
+			 # (x2,y2) is bottom right (BR) corner
+			x1, y1, x2, y2 = face.astype(np.int32);
+			
+			# rect is square, so width and height equivalent
+			size = x2 - x1;
+
+			bodyWidthFactor = 2;
+			bodyHeightFactor = 3;
+
+			beyondFaceX = ((size*bodyWidthFactor)-size)/2.0;
+
+			bodyX1 = x1 - beyondFaceX;
+			bodyY1 = y2;
+			bodyX2 = x2 + beyondFaceX;
+			bodyY2 = y2 + (size*bodyHeightFactor);
+
+			bodyRects[i]=np.asarray([bodyX1, bodyY1, bodyX2, bodyY2],dtype=np.int32);
+			i = i + 1;
+
+		return bodyRects;
+
 			
 class Display:
 
@@ -385,194 +429,15 @@ class Display:
 		"""Draw face and eyes onto image, then display it"""
 		
 		# Get Coordinates
-		eyeRects = model.getEyeRects();
 		faceRect = model.getFaceRect();
 		linePoints = model.getEyeLine();
 	
 		# Draw Shapes and display frame
 		self.drawLine(frame, linePoints[0],linePoints[1],(0, 0, 255));
 		self.drawRectangle(frame, faceRect, (0, 0, 255));
-		self.drawRectangle(frame, eyeRects[0], (0, 255, 0));
-		self.drawRectangle(frame, eyeRects[1], (0, 255, 0));
-		
-		if rects is not False:
-			self.drawRectangle(frame, rects['eyeLeft'], (152,251,152));
-			self.drawRectangle(frame, rects['eyeRight'],(152,251,152));
 		
 		cv2.imshow("Video", frame);
 	
-	def renderEyes(self, frame, model):
-	
-		eyeRects = model.getEyeRects();
-		
-		if len(eyeRects[0]) is 4:
-			cropTop = 0.2;
-			cropBottom = 0.2;
-			eyeLeftHeight = eyeRects[0][3] - eyeRects[0][1];
-			eyeLeftWidth = eyeRects[0][2] - eyeRects[0][0];
-			eyeLeftIMG = frame[(eyeRects[0][1]+eyeLeftHeight*cropTop):(eyeRects[0][3]-eyeLeftHeight*cropBottom), eyeRects[0][0]:eyeRects[0][2]];
-			eyeLeftExpanded = 			frame[(eyeRects[0][1]+eyeLeftHeight*(cropTop/2)):(eyeRects[0][3]-eyeLeftHeight*(cropBottom/2)), (eyeRects[0][0]-eyeLeftWidth*cropTop):(eyeRects[0][2]+eyeLeftWidth*cropTop)];
-			
-			#eyeLeftExpanded = cv2.resize(eyeLeftExpanded,None,fx=0.5,fy=0.5);
-			eyeLeftExpanded = cv2.cvtColor(eyeLeftExpanded,cv.CV_BGR2GRAY);
-			eyeLeftExpanded = cv2.equalizeHist(eyeLeftExpanded);
-			eyeLeftExpanded = cv2.GaussianBlur(eyeLeftExpanded,(7,7),4);
-			
-			cv2.imshow("eyeLeftExpanded",eyeLeftExpanded);
-			cv2.moveWindow("eyeLeftExpanded",0, 500);
-
-			
-			# Grayscale Eye
-			eyeLeftBW = cv2.cvtColor(eyeLeftIMG,cv.CV_BGR2GRAY);
-
-			# Equalize Eye and find Average Eye
-			eyeLeftEqualized = cv2.equalizeHist(eyeLeftBW);
-			#eyeLeftAvg = ((eyeLeftBW.astype(np.float32) + eyeLeftEqualized.astype(np.float32)) / 2.0).astype(np.uint8);
-
-
-			# Eye Contrast Enhancement
- 			eyeLeftContrasted = Util.contrast(eyeLeftIMG,1.5);
- 			#eyeLeftHiContrast = Util.contrast(eyeLeftIMG,2);
-			
-			# Blur Eye
-			eyeLeftBlurredBW = cv2.GaussianBlur(eyeLeftEqualized,(7,7),1);
-			eyeLeftBlurThreshBW = Util.threshold(eyeLeftBlurredBW,100);
-			
-			# Split into blue, green and red channels
-			B,G,R = cv2.split(eyeLeftIMG);
-			B = cv2.equalizeHist(B);
-			BBlurred = cv2.GaussianBlur(B,(7,7),1);
-			#G = cv2.equalizeHist(G);
-			#R = cv2.equalizeHist(R);
-			
-			# Thresholding
-#			thresholded = Util.threshold(B,200);
-
-			# Good Features To Track
-			eyeFeatures = cv2.goodFeaturesToTrack(eyeLeftExpanded,10,0.3,10);
-			eyeLeftFeatureMap = cv2.cvtColor(eyeLeftExpanded,cv.CV_GRAY2BGR);
-			if eyeFeatures is not None:
-				for c in eyeFeatures:
-					if len(c) is 0:
-						continue;
-					corner = c[0].astype(np.int32);#*2;
-					
-					center = (corner[0], corner[1]);
-					cv2.circle(eyeLeftFeatureMap,center,2,(0, 255, 0),-1);
-					
-			cv2.imshow("eyeLeftFeatures",eyeLeftFeatureMap);
-			cv2.moveWindow("eyeLeftFeatures",0,600);
-			
-			# Harris Corner Detection
-# 			cornerMap = cv2.cornerHarris(eyeLeftEqualized,2,3,0.004);
-# 			eyeLeftCorners = cv2.cvtColor(eyeLeftEqualized,cv.CV_GRAY2BGR);
-# 			size = eyeLeftBlurredBW.shape;
-# 	# 			print size
-# 	# 			
-# 	# 			cornerValues = cornerMap.flatten();
-# 	# 
-# 	# 			hist, bins = np.histogram(cornerValues,bins = 50)
-# 	# 			width = 0.7*(bins[1]-bins[0])
-# 	# 			center = (bins[:-1]+bins[1:])/2
-# 	# 			plt.bar(center, hist, align = 'center', width = width)
-# 	# 			plt.show()
-# 			
-# 			for i in range(0,size[0]):
-# 				for j in range(0,size[1]):
-# 					
-# 					if cornerMap[i][j] > 0.00025:
-# 						cv2.circle(eyeLeftCorners,(i,j),2,(0, 255, 0),-1);
-# 			
-# 			cv2.imshow("eyeLeftCorners",eyeLeftCorners);
-# 			cv2.moveWindow("eyeLeftCorners",0,750);
-
-			
-			
-			
-			
-			# Hough Transformation
-			irisMinRadius = int(round(eyeLeftEqualized.shape[1]*0.1));
-			irisMaxRadius = int(round(eyeLeftEqualized.shape[1]*0.25));
-			# TODO update this based on previously-found iris radii
-			minDistance = irisMaxRadius*2;
-			circles = cv2.HoughCircles(eyeLeftBlurredBW, cv.CV_HOUGH_GRADIENT, 2.5, minDistance, param1=30, param2=30,minRadius=irisMinRadius,maxRadius=irisMaxRadius);
-			
-			eyeLeftBW_C = cv2.cvtColor(B,cv.CV_GRAY2BGR);
-			if circles is not None and len(circles)>0:
-				#print circles
-				for c in circles[0]:
-					c = c.astype(np.int32);
-					
-					center = (c[0], c[1]);
-					#print 'center=',center,', radius=',c[2];
-					cv2.circle(eyeLeftBW_C,(c[0],c[1]),c[2],(0, 255, 0));
-			
-			cv2.imshow("eyeLeftBW_C",eyeLeftBW_C);
-			cv2.moveWindow("eyeLeftBW_C",150,600);
-			
-			# Display Original Eye Image
-			cv2.imshow("eyeLeft",eyeLeftIMG);
-			cv2.moveWindow("eyeLeft",0,350);
-			
-			# Display Blurred Images
-#			cv2.imshow("eyeLeftBW",eyeLeftBW);
-# 			cv2.moveWindow("eyeLeftBW",0,475);
-#			cv2.imshow("eyeLeftBlurredBW",eyeLeftBlurredBW);
-# 			cv2.moveWindow("eyeLeftBlurredBW",150,475);
-#			cv2.imshow("eyeLeftBlurThreshBW",eyeLeftBlurThreshBW);
-# 			cv2.moveWindow("eyeLeftBlurThreshBW",300,475);
- 			
- 
-			cv2.imshow("edges",cv2.Canny(eyeLeftBW,15,30));
-			cv2.moveWindow("edges",0,550);
-			cv2.imshow("blurrededges",cv2.Canny(eyeLeftBlurredBW,15,30));
-			cv2.moveWindow("blurrededges",150,550);
-#			cv2.imshow("blurredthreshedges",cv2.Canny(eyeLeftBlurThreshBW,15,30));
-#			cv2.moveWindow("blurredthreshedges",300,550);
-
-			
-			# Display B, G, R Channels
-# 			cv2.imshow("B",B);
-# 			cv2.moveWindow("B",0,475);
-# 			cv2.imshow("G",G);
-# 			cv2.moveWindow("G",150,475);
-# 			cv2.imshow("R",R);
-# 			cv2.moveWindow("R",300,475);			
-			
-			# Display Thresholded Eye
-#			cv2.imshow("eyeLeftThresh",thresholded);
-#			cv2.moveWindow("eyeLeftThresh",300,750);
-
-			# Display Histogram
-		#	self.drawHistogram(eyeLeftContrasted);
-			
-			# Display Contrasted Images
-# 			cv2.imshow("eyeLeftContrasted",eyeLeftContrasted);
-# 			cv2.moveWindow("eyeLeftContrasted",0, 750);
-# 			cv2.imshow("eyeLeftHiContrast",eyeLeftHiContrast);
-# 			cv2.moveWindow("eyeLeftHiContrast",150, 750);
-
-			
-			# HSV Equalization
-# 			eyeLeftEQ = Util.equalizeHSV(eyeLeftIMG);
-# 			cv2.imshow("eyeLeftEQ",eyeLeftEQ);
-# 			cv2.moveWindow("eyeLeftEQ",0,500);
-			
-			# K-Means Color Quantization/Clustering
-# 			z = eyeLeftEQ.reshape((-1,3))
-# 			k = 4;           # Number of clusters
-# 			center,dist = vq.kmeans(z,k)
-# 			code,distance = vq.vq(z,center)
-# 			res = center[code]
-# 			eyeLeftQ = res.reshape((eyeLeftEQ.shape))
-# 			cv2.imshow("eyeLeftQ",eyeLeftQ);
-# 			cv2.moveWindow("eyeLeftQ",0,650);
-
-		if len(eyeRects[1]) is 4:
-			eyeRightIMG = frame[eyeRects[1][1]:eyeRects[1][3], eyeRects[1][0]:eyeRects[1][2]];
-			cv2.imshow("eyeRight",eyeRightIMG);
-			cv2.moveWindow("eyeRight",200,350);
-
 	@staticmethod
 	def drawHistogram(img,color=True,windowName='drawHistogram'):
 		h = np.zeros((300,256,3))
@@ -610,52 +475,89 @@ class Display:
 		if len(rect) is not 4:
 			# TODO throw error
 			return;
-		rect = rect * DISPLAY_SCALE;
+
+		# if points out of bounds, adjust to prevent gruesome errors
+		# remove negative values, replace with zeros
+		rect = rect.clip(0); 
+		
+		# Trim points beyond max width
+		if rect[2] >= img.shape[1]:
+			rect[2]=img.shape[1]-1;
+
+		# Trim points beyond max height
+		if rect[3] >= img.shape[0]:
+			rect[3]=img.shape[0]-1;
+
+		# rect = rect * DISPLAY_SCALE;
 		x1, y1, x2, y2 = rect.astype(np.int32);
 		cv2.rectangle(img, (x1, y1), (x2, y2), color, 2);
+
+	@staticmethod
+	def drawBodies(img,faceRects,bodyRects):
+		"""Draw body and face rectangles on image"""
+
+		for face in faceRects:
+			disp.drawRectangle(img, face, (0, 0, 255));
+
+		for body in bodyRects:
+			disp.drawRectangle(img,body, (0, 255, 0));
+
 
 class Capture:
 
 	height = 0;
 	width = 0;
-	
-	def __init__(self, cameraIndex=1, scaleFactor=1):
 
-		self.camera = cv2.VideoCapture(cameraIndex);
+	EYE_SCALE = 0.5;
+	WORLD_SCALE = 0.5;
+
+	PUPIL_XMIN = 0;
+	PUPIL_XMAX = 450;
+	PUPIL_YMIN = 130;
+	PUPIL_YMAX = 350;
 	
-		# Setup webcam dimensions
-		self.height = self.camera.get(cv.CV_CAP_PROP_FRAME_HEIGHT);
-		self.width = self.camera.get(cv.CV_CAP_PROP_FRAME_WIDTH);
+	def __init__(self, cameraEye, cameraWorld):
+
+		self.cameraEye = cameraEye;
+		self.cameraWorld = cameraWorld;
+	
+		# # Setup webcam dimensions
+		# self.height = self.camera.get(cv.CV_CAP_PROP_FRAME_HEIGHT);
+		# self.width = self.camera.get(cv.CV_CAP_PROP_FRAME_WIDTH);
 		
-		# Reduce Video Size to make Processing Faster
-		if scaleFactor is not 1:
-			scaledHeight = self.height / scaleFactor;
-			scaledWidth = self.width / scaleFactor;
-			self.camera.set(cv.CV_CAP_PROP_FRAME_HEIGHT,scaledHeight);
-			self.camera.set(cv.CV_CAP_PROP_FRAME_WIDTH,scaledWidth);
+		# # Reduce Video Size to make Processing Faster
+		# if scaleFactor is not 1:
+		# 	scaledHeight = self.height / scaleFactor;
+		# 	scaledWidth = self.width / scaleFactor;
+		# 	self.camera.set(cv.CV_CAP_PROP_FRAME_HEIGHT,scaledHeight);
+		# 	self.camera.set(cv.CV_CAP_PROP_FRAME_WIDTH,scaledWidth);
 	
-		# Create window
-		cv2.namedWindow("Video"+str(cameraIndex), cv2.CV_WINDOW_AUTOSIZE);
+		# # Create window
+		# cv2.namedWindow("Video"+str(cameraIndex), cv2.CV_WINDOW_AUTOSIZE);
 	
 	def read(self):
-		retVal, colorFrame = self.camera.read();
-		#displayFrame = cv2.resize(colorFrame,None,fx=DISPLAY_SCALE,fy=DISPLAY_SCALE);
-		
-		#grayFrame = cv2.equalizeHist(cv2.cvtColor(colorFrame,cv.CV_BGR2GRAY));
-		if not colorFrame:
-			print "capture failed, colorFrame empty"
-		grayFrame = cv2.cvtColor(colorFrame,cv.CV_BGR2GRAY)
-		
-		faceFrame = cv2.resize(grayFrame,None,fx=FACE_SCALE,fy=FACE_SCALE);
-		
-		eyesFrame = cv2.resize(cv2.equalizeHist(cv2.cvtColor(colorFrame,cv.CV_BGR2GRAY)),None,fx=EYE_SCALE,fy=EYE_SCALE);
+
+		#######################################################
+		# CAPTURE, SCALE & RECOLOR WORLD IMAGE							
+		#######################################################
+		frameWorldRetVal, frameWorld = self.cameraWorld.read();
+		scaledWorldColor = cv2.resize(frameWorld,None,fx=self.WORLD_SCALE,fy=self.WORLD_SCALE);
+		scaledWorldBW = cv2.cvtColor(scaledWorldColor,cv.CV_BGR2GRAY);
+
+		#######################################################
+		# CAPTURE, SCALE & CROP EYE IMAGE							
+		#######################################################
+		frameEyeRetVal, frameEye = self.cameraEye.read();
+		# eye camera returns frames that are 800px high by 1280px wide
+		scaledEye = cv2.resize(frameEye,None,fx=self.EYE_SCALE,fy=self.EYE_SCALE);
+		scaledEye = cv2.cvtColor(scaledEye,cv.CV_BGR2GRAY);
+		# remove pixels not centered on eye 
+		scaledEye = scaledEye[self.PUPIL_YMIN:self.PUPIL_YMAX, self.PUPIL_XMIN:self.PUPIL_XMAX];
 		
 		frames = {
-			'color': colorFrame,
-			#'display': displayFrame,
-			#'gray': grayFrame,
-			'face': faceFrame,
-			'eyes': eyesFrame
+			'worldColor': scaledWorldColor,
+			'worldBW': scaledWorldBW,
+			'eye': scaledEye
 		};
 		
 		return frames;
@@ -893,9 +795,6 @@ def getWorldCoords((eyex, eyey), ax, ay):
 
 
  
-disp = Display();
-detector = FaceDetector(FACE_CLASSIFIER_PATH, EYE_CLASSIFIER_PATH);
-
 # THESE INDICES CAN CHANGE AT A MOMENTS NOTICE
 # use a for loop to check for correct camera
 dev1 = "0";
@@ -929,6 +828,10 @@ while dev2 != "":
 cv2.destroyWindow('Eye Camera');
 cv2.destroyWindow('World Camera');
 
+disp = Display();
+detector = FaceDetector(FACE_CLASSIFIER_PATH, EYE_CLASSIFIER_PATH);
+capture = Capture(cameraEye,cameraWorld);
+
   
 # [used in gray projection]
 horizontal_sum = 0;
@@ -947,44 +850,31 @@ eyedata_initialized = False;
 done_accum = False;
 eyepts = None;
 
-scaledxmin = 0; 
-scaledymin = 130; 
-scaledxmax = 450; 
-scaledymax = 350; 
-
 while True:
 	i = i+1;
 
-	#######################################################
-	# CAPTURE, SCALE & RECOLOR WORLD IMAGE							
-	#######################################################
-	frameWorldRetVal, frameWorld = cameraWorld.read();
-	scaledWorldBW = cv2.resize(frameWorld,None,fx=0.5,fy=0.5);
-	scaledWorldBW = cv2.cvtColor(scaledWorldBW,cv.CV_BGR2GRAY);
-	scaledWorldColor = cv2.resize(frameWorld,None,fx=0.5,fy=0.5);
+	frames = capture.read();
 
-	#######################################################
-	# CAPTURE, SCALE & CROP EYE IMAGE							
-	#######################################################
-	frameEyeRetVal, frameEye = cameraEye.read();
-	# eye camera returns frames that are 800px high by 1280px wide
-	scaledEye = cv2.resize(frameEye,None,fx=0.5,fy=0.5);
-	scaledEye = cv2.cvtColor(scaledEye,cv.CV_BGR2GRAY);
-	# remove pixels not centered on eye 
-	scaledEye = scaledEye[scaledymin:scaledymax, scaledxmin:scaledxmax];
+	faceRects = detector.detect(frames);
+	bodyRects = PersonModel.getBodyRects(faceRects);
 
+	Display.drawBodies(frames['worldColor'],faceRects,bodyRects);
+
+	#for face in faceRects:
+		#print face;
+		#disp.drawRectangle(frames['worldColor'], face, (0, 0, 255));
 	
 	# experimenting with RGB image in order to crop eye more dynamically
 	# ideas: use blue image to find glasses to crop image quickly
 	# then use blue image to find pupil and crop box around it
-	# B, G, R = cv2.split(scaledEye);
+	# B, G, R = cv2.split(frames['eye']);
 	# cv2.imshow('BEye', B);
 	# cv2.imshow('GEye', G);
 	# cv2.imshow('REye', R);
 
 	# # Good Features To Track
-	# corners = cv2.goodFeaturesToTrack(scaledEye, 50, .1, 20);
-	# featureFrame = cv2.cvtColor(scaledEye,cv.CV_GRAY2BGR);
+	# corners = cv2.goodFeaturesToTrack(frames['eye'], 50, .1, 20);
+	# featureFrame = cv2.cvtColor(frames['eye'],cv.CV_GRAY2BGR);
 	# if corners is not None:
 	# 	corners = np.reshape(corners, (-1,2));
 	# 	for x, y in corners:
@@ -992,7 +882,7 @@ while True:
 
 	
 	if eyedata_initialized == False:
-		eyellipse = np.ones(scaledEye.shape)*255;
+		eyellipse = np.ones(frames['eye'].shape)*255;
 		eyellipse = eyellipse.astype(np.uint8);
 		eyedata_initialized = True;
 
@@ -1001,7 +891,7 @@ while True:
 	#######################################################
 
 	# Blur image, eliminating high spatial frequency dark spots
-	blurred1 = cv2.GaussianBlur(scaledEye,(21,21),1);
+	blurred1 = cv2.GaussianBlur(frames['eye'],(21,21),1);
 
 	# Dynamic threshold: slightly higher than lowest light intensity
 	minval = np.min(blurred1);
@@ -1025,7 +915,7 @@ while True:
 	# display minr and maxr in a separate window
 	# print minr;
 	# print maxr;
-	# lineFrame = scaledEye.copy();
+	# lineFrame = frames['eye'].copy();
 	# lineFrame = cv2.cvtColor(lineFrame,cv.CV_GRAY2BGR);
 	# cv2.line(lineFrame,tuple([200,50]), tuple([200+minr, 50]), (200, 100, 255));
 	# cv2.line(lineFrame,tuple([200,75]), tuple([200+maxr, 75]), (100, 255, 0));
@@ -1036,7 +926,7 @@ while True:
 	circles = cv2.HoughCircles(threshed, cv.CV_HOUGH_GRADIENT, 2, \
 		minDist, param1=30, param2=10,minRadius=minr,maxRadius=maxr);
 	
-	houghCircleFrame = cv2.cvtColor(scaledEye,cv.CV_GRAY2BGR);
+	houghCircleFrame = cv2.cvtColor(frames['eye'],cv.CV_GRAY2BGR);
 	
 	# # Hough circle plotting
 	# if circles is not None and len(circles)>0:
@@ -1065,7 +955,7 @@ while True:
 #		cv2.imshow("contours",edgesROI);
 
 	# estimate pupil using template matching
-	#loc = est_pupil_template(scaledEye, maxr, maxr);
+	#loc = est_pupil_template(frames['eye'], maxr, maxr);
 	#cv2.circle(houghCircleFrame, loc, 10, (50, 255, 100));
 	
 
@@ -1084,7 +974,7 @@ while True:
 		eBox = tuple([tuple([ellipseBox[0][1],ellipseBox[0][0]]),\
 		tuple([ellipseBox[1][1],ellipseBox[1][0]]),ellipseBox[2]*-1]);
 		
-		ellipseFrame = scaledEye.copy();
+		ellipseFrame = frames['eye'].copy();
 		ellipseFrame = cv2.cvtColor(ellipseFrame,cv.CV_GRAY2BGR);
 		cv2.ellipse(ellipseFrame,eBox,(0, 255, 0));
 		
@@ -1131,7 +1021,7 @@ while True:
 	# 		done_accum = True;
 			
 	# 		# show the elipse in a new image frame
-	# 		dat = np.ones(scaledEye.shape);
+	# 		dat = np.ones(frames['eye'].shape);
 	# 		dat = dat.astype(np.uint8);
 	# 		cv2.ellipse(dat,eBox,0);
 	# 		cv2.ellipse(eyellipse,eBox,0);
@@ -1174,13 +1064,13 @@ while True:
 
 		# Search for target
 		targetFound, worldcenters = \
-		cv2.findCirclesGridDefault(scaledWorldBW, (4,11), \
+		cv2.findCirclesGridDefault(frames['worldBW'], (4,11), \
 		flags=cv2.CALIB_CB_ASYMMETRIC_GRID); 
 
 		# Calibration target found
 		if targetFound:
 			worldpt = worldcenters.sum(0)/worldcenters.shape[0];
-			cv2.circle(scaledWorldBW, tuple(worldpt[0]), \
+			cv2.circle(frames['worldBW'], tuple(worldpt[0]), \
 				3, (255, 100, 255));
 			
 			# if the pupil center was calculated, try to store a point
@@ -1188,7 +1078,7 @@ while True:
 				# find the calibration image 
 				if eyepts_initialized == True:
 					print str(len(eyepts));
-					cv2.circle(scaledWorldColor, tuple([worldpt[0][0],worldpt[0][1]]),5, (0, 0, 255));
+					cv2.circle(frames['worldColor'], tuple([worldpt[0][0],worldpt[0][1]]),5, (0, 0, 255));
 					worldpts.append([worldpt[0][0], \
 							 worldpt[0][1]]);
 					eyepts.append([center[0],center[1]]);
@@ -1199,7 +1089,7 @@ while True:
 					eyepts_initialized = True;
 
 			# If enough data collected, run calibration routine
-			if eyepts is not None and len(eyepts) > 250:
+			if eyepts is not None and len(eyepts) > 30:
 				done = True
 				print "worldpts";
 				print worldpts;
@@ -1217,13 +1107,14 @@ while True:
 	if done == True:
 		gazept = getWorldCoords(center, xcoeff, ycoeff);
 		gazept = np.around(np.asarray(gazept, dtype=np.int32));
-		print gazept;
-		cv2.circle(scaledWorldColor, tuple(gazept),30, (255, 100, 255), 5);
+		# print gazept;
+		print PersonModel.isFaceGazing(gazept,faceRects);
+		cv2.circle(frames['worldColor'], tuple(gazept),GAZE_RADIUS*2, (255, 100, 255), 5);
 	
 	# detect skin color
-	skinhist = numpy.zeros((256,256));
+	# skinhist = np.zeros((256,256));
 	
-	cv2.imshow('TheWorld',scaledWorldColor);
+	cv2.imshow('TheWorld',frames['worldColor']);
 
 	#######################################################
 	# DIAGNOSTIC DISPLAYS	
