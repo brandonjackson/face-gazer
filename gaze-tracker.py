@@ -755,7 +755,7 @@ while True:
 	Display.drawBodies(frames['worldColor'],faceRects,bodyRects);
 
 	#######################################################
-	# EYE DETECTION
+	# EYE DETECTION IN WORLD CAMERA
 	#######################################################
 	# eyeRects = detector.classifyEyes(frames['eyeFull']);
 
@@ -783,7 +783,7 @@ while True:
 	matr = np.where(threshed == threshval);
 	threshed[matr] = 255;
 
-	# Blur, then apply canny edge detection
+	# Blur thresholded image again, then apply canny edge detection
 	blurred = cv2.GaussianBlur(threshed,(7,7),1);
 	edges = cv2.Canny(blurred,15,30);
 	
@@ -854,9 +854,9 @@ while True:
 					eyepts_initialized = True;
 
 			# If enough data collected, run calibration routine
-			if eyepts is not None and len(eyepts) > 100:
+			if eyepts is not None and len(eyepts) > 200:
 				start_time = time.time();
-				fp = open('workfile', 'w');
+				fp = open('distancedata.txt', 'w');
 				string = 'start time: ' + \
 					str(start_time) + '\n';
 				fp.write(string);
