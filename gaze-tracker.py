@@ -795,6 +795,12 @@ while True:
 	if edgePoints.shape[0] > 6:
 		gotedgePoints = True;
 		ellipseBox = cv2.fitEllipse(edgePoints);
+
+		# If ellipse too big, toss it out!
+		if ellipseBox[1][0] > 50 or ellipseBox[1][1] > 50:
+			print 'Warning: Ellipse Too Big, Dropping Frame.'
+			continue;
+
 		eBox = tuple([tuple([ellipseBox[0][1],ellipseBox[0][0]]),\
 		tuple([ellipseBox[1][1],ellipseBox[1][0]]),ellipseBox[2]*-1]);
 		
