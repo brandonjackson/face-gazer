@@ -512,7 +512,7 @@ class Capture:
 	WORLD_SCALE = 0.5;
 
 	PUPIL_XMIN = 0;
-	PUPIL_XMAX = 450;
+	PUPIL_XMAX = 400;
 	PUPIL_YMIN = 130;
 	PUPIL_YMAX = 350;
 	
@@ -598,132 +598,6 @@ def main():
 		cv2.imshow("Video3", framesWorld['display']);
 		# display.renderScene(frames['display'],model,rects);
 		# display.renderEyes(frames['color'],model);
-
-def die(msg):
-	# print error message and exit
-	print "gaze-tracker: " + msg;
-	exit(1);
-
-def estimate_pupil(img, minr, maxr):
-	# estimates the x,y position of the pupil in img using an integral im
-	# REALLY REALLY SLOW RIGHT NOW
-	
-	# create an integral image ii to do fast pupil location estimation
-	ii = cv2.integral(img);
-
-	h = img.shape[0];
-	print "h is " + str(h);
-	w = img.shape[1];
-	print "w is " + str(w);
-
-	print "wrange is " + str(w-6*minr);
-	print "hrange is " + str(h-6*minr);
-	best = 0;
-	bestx = 0;
-	besty = 0;	
-	# loop through all possible pupil radii r and all positions x,y
-	for r in range(minr, maxr+1):
-		#print r;
-		for y in range(h-6*r-1):
-			for x in range(w-6*r-1):
-				#print "(x,y) is " + str(x) + " " + str(y);
-				bright = ii[y+6*r,x+6*r] - ii[y+6*r,x] - \
-					ii[y,x+6*r] - ii[y,x];
-				i = x+2*r;
-				j = y+2*r;
-				dark = ii[j+r,i+r] - ii[j+r,i] - \
-					ii[j,i+r] - ii[j,i];
-				matchval = bright - 2*dark;
-				if matchval > best:
-					best = matchval;
-					bestx = i + r;
-					besty = j + r;
-
-	return x, y;
-
-def est_pupil_template(img, minr, maxr):
-	# estimates the x,y position of the pupil in img using template matchng 
-	# currently doesn't pick out the pupil 
-	
-	h = img.shape[0];
-	w = img.shape[1];
-
-	best = w*h;
-	# loop through all possible pupil radii r and all positions x,y
-	for r in range(minr, maxr+1):
-		templ = np.ones((4*r,4*r))*255;
-		templ[r:3*r,r:3*r] = 0;
-		templ = templ.astype(np.uint8);
-		
-		cv2.imshow('template', templ);
-		result = cv2.matchTemplate(img, templ,cv.CV_TM_SQDIFF_NORMED); 
-		minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(result);
-		
-		print minVal;
-		print maxVal;
-		if minVal < best:
-			best = minVal;
-			bestloc = [minLoc[0],minLoc[1]];
-			#bestloc[0] = bestloc[0] + 6*r;
-			#bestloc[1] = bestloc[1] + 6*r;
-				
-	return tuple(bestloc);
-
-	
-def bestcircle(img, circles, rmin, rmax):
-	# estimates the x,y position of the pupil in img using an integral
-	# image and checking only points indicated by the Hough circles array 
-
-	temp = img/255;
-
-	# create an integral image ii to do fast pupil location estimation
-	ii = cv2.integral(temp);
-
-	h = img.shape[0];
-	w = img.shape[1];
-
-	best = -w*h;
-	bestx = 0;
-	besty = 0;	
-
-	for c in circles[0]:
-		for r in range(rmin, rmax):
-			# define scale of bright box radius bbr
-			bbr = 3;
-		 
-			xcent = c[0];
-			ycent = c[1];
-		
-			# assign bright box corners bbr*r away from center
-			x1 = max(0,xcent-bbr*r);
-			y1 = max(0,ycent-bbr*r);
-			x2 = min(w,xcent+bbr*r);
-			y2 = min(h,ycent+bbr*r);
-			area = (y2-y1)*(x2-x1);	
-			bright = ii[y2,x2] - ii[y2,x1] - ii[y1,x2] + ii[y1,x1];
-		
-			# assign dark box corners r away from center
-			x1 = max(0,xcent-r);
-			y1 = max(0,ycent-r);
-			x2 = min(w,xcent+r);
-			y2 = min(h,ycent+r);
-			dark = ii[y2,x2] - ii[y2,x1] - ii[y1,x2] + ii[y1,x1];
-		
-			matchval = (bright - 2*dark)/area;
-			if matchval > best:
-				best = matchval;
-				bestc = c;
-				bestr = r;
-	
-	return bestc, bestr;
-
-def findcalim(img, templ):
-	# returns the best location of the template
-	result = cv2.matchTemplate(img, templ,cv.CV_TM_SQDIFF_NORMED); 
-	cv2.imshow('result', result);
-	minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(result);
-	return maxLoc;	
-
 
 def fit_polynomial_surf(X,Y,Z):         
     """
@@ -845,8 +719,6 @@ crop = [0,0,frameEye.shape[1], frameEye.shape[0]];
 eyepts_initialized = False;
 world_initialized = False;
 done = False;
-eyePoints_initialized = False;
-eyedata_initialized = False;
 done_accum = False;
 eyepts = None;
 
@@ -860,34 +732,8 @@ while True:
 
 	Display.drawBodies(frames['worldColor'],faceRects,bodyRects);
 
-	#for face in faceRects:
-		#print face;
-		#disp.drawRectangle(frames['worldColor'], face, (0, 0, 255));
-	
-	# experimenting with RGB image in order to crop eye more dynamically
-	# ideas: use blue image to find glasses to crop image quickly
-	# then use blue image to find pupil and crop box around it
-	# B, G, R = cv2.split(frames['eye']);
-	# cv2.imshow('BEye', B);
-	# cv2.imshow('GEye', G);
-	# cv2.imshow('REye', R);
-
-	# # Good Features To Track
-	# corners = cv2.goodFeaturesToTrack(frames['eye'], 50, .1, 20);
-	# featureFrame = cv2.cvtColor(frames['eye'],cv.CV_GRAY2BGR);
-	# if corners is not None:
-	# 	corners = np.reshape(corners, (-1,2));
-	# 	for x, y in corners:
-	# 		cv2.circle(featureFrame,(x,y),3,(0, 255, 0));
-
-	
-	if eyedata_initialized == False:
-		eyellipse = np.ones(frames['eye'].shape)*255;
-		eyellipse = eyellipse.astype(np.uint8);
-		eyedata_initialized = True;
-
 	#######################################################
-	# THRESHOLDING 										  #
+	# THRESHOLDING #
 	#######################################################
 
 	# Blur image, eliminating high spatial frequency dark spots
@@ -902,62 +748,6 @@ while True:
 		maxval=255, type=cv.CV_THRESH_BINARY);
 	matr = np.where(threshed == threshval);
 	threshed[matr] = 255;
-
-	# use on center - off surround template to quickly estimate pupil
-	# center over all x,y and pupil radius ranging from minr to maxr 
-	minr = int(round(threshed.shape[1]*0.03));
-	maxr = int(round(threshed.shape[1]*0.1));
-	
-	
-	#pupx, pupy = estimate_pupil(threshed, minr, minr);
-		
-	# code to check size of minr and maxr
-	# display minr and maxr in a separate window
-	# print minr;
-	# print maxr;
-	# lineFrame = frames['eye'].copy();
-	# lineFrame = cv2.cvtColor(lineFrame,cv.CV_GRAY2BGR);
-	# cv2.line(lineFrame,tuple([200,50]), tuple([200+minr, 50]), (200, 100, 255));
-	# cv2.line(lineFrame,tuple([200,75]), tuple([200+maxr, 75]), (100, 255, 0));
-	# cv2.imshow("lines",lineFrame);
-	
-	# TODO update this based on previously-found iris radii
-	minDist = maxr*2;
-	circles = cv2.HoughCircles(threshed, cv.CV_HOUGH_GRADIENT, 2, \
-		minDist, param1=30, param2=10,minRadius=minr,maxRadius=maxr);
-	
-	houghCircleFrame = cv2.cvtColor(frames['eye'],cv.CV_GRAY2BGR);
-	
-	# # Hough circle plotting
-	# if circles is not None and len(circles)>0:
-	# 	for c in circles[0]:
-	# 		c = c.astype(np.int32);
-	# 		cv2.circle(houghCircleFrame,(c[0],c[1]),c[2],(0, 255, 0));
-
-	if circles is not None and len(circles)>0:
-		c, r = bestcircle(threshed, circles, minr, maxr);
-		c = c.astype(np.int32);
-		pupROI = [c[0]-2*r,c[1]-2*r, c[0]+2*r,c[1]+2*r];
-		cv2.circle(houghCircleFrame, (c[0]+2,c[1]+2), c[2], (255, 100, 255));
-		cv2.rectangle(houghCircleFrame, (c[0]-2*r,c[1]-2*r), (c[0]+2*r,c[1]+2*r), (255, 100, 255));
-
-		blurredROI = cv2.GaussianBlur(threshed, (15,15) ,1);#[pupROI[1]:pupROI[3], pupROI[0]:pupROI[2]], (7,7) ,1);
-		edgesROI = cv2.Canny(blurredROI,15,30);
-		conROI = edgesROI;
-		contours, hierarchy = cv2.findContours(edgesROI,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE);
-		best = 0;
-		for cnt in contours:
-			retval = cv2.contourArea(cnt);
-			if retval > best:
-				bestcnt = cnt;	
-		edgesROI = cv2.cvtColor(edgesROI,cv.CV_GRAY2BGR);
-#		cv2.drawContours(edgesROI,bestcnt,-1,(255,255,0),-1);
-#		cv2.imshow("contours",edgesROI);
-
-	# estimate pupil using template matching
-	#loc = est_pupil_template(frames['eye'], maxr, maxr);
-	#cv2.circle(houghCircleFrame, loc, 10, (50, 255, 100));
-	
 
 	# Blur, then apply canny edge detection
 	blurred = cv2.GaussianBlur(threshed,(7,7),1);
@@ -989,71 +779,6 @@ while True:
 	if i == 10:
 		print "please focus on the red cross in the image."
 		print "now turn your head until you are dizzy";
-
-	# use data accumulated during calibration constrain ROI
-	# and radius for pupil
-	# if i >= 20 and done_accum is False:
-	# 	if gotedgePoints == True:
-	# 		# add the center to eyePoints array and display
-	# 		# accumulated points
-	# 		if eyePoints_initialized is True:
-	# 			eyePoints = np.vstack(\
-	# 				[eyePoints, [center[1],center[0]]]);
-	# 			eyellipse[center[1],center[0]] = 0;
-	# 			cv2.imshow("eyellipse",eyellipse);
-	# 		else:
-	# 			eyePoints = np.array(\
-	# 				[[center[1],center[0]]]);
-	# 			eyePoints_initialized = True;	
-	
-	# 	# if there are enough accumulated points to fit an ellipse
-	# 	# fit an ellipse to the points
-	# 	if eyePoints_initialized is True and eyePoints.shape[0] > 6:
-	# 		ellipseBox = cv2.fitEllipse(eyePoints);
-	# 		eBox = tuple([tuple([ellipseBox[0][1],\
-	# 		ellipseBox[0][0]]),tuple([ellipseBox[1][1],\
-	# 		ellipseBox[1][0]]),ellipseBox[2]*-1]);
-	# 		cv2.ellipse(ellipseFrame,eBox,(0, 0, 255));
-	# 		cv2.imshow("ellipseFit",ellipseFrame);
-			
-	# 	# if calibration is done then accumulation is done
-	# 	if done:
-	# 		done_accum = True;
-			
-	# 		# show the elipse in a new image frame
-	# 		dat = np.ones(frames['eye'].shape);
-	# 		dat = dat.astype(np.uint8);
-	# 		cv2.ellipse(dat,eBox,0);
-	# 		cv2.ellipse(eyellipse,eBox,0);
-	# 		cv2.imshow("eyellipse",eyellipse);
-			
-	# 		# find the points on the elipse and construce a
-	# 		# upright bounding box around them
-	# 		edgePoints = np.argwhere(dat==0);
-	# 		maxvals = np.amax(edgePoints, axis=0);
-	# 		minvals = np.amin(edgePoints, axis=0);
-	# 		print minvals;
-	# 		print maxvals;	
-	# 		height = maxvals[1]-minvals[1];
-	# 		width = maxvals[0]-minvals[0];
-	# 		newheight = height*2;
-	# 		newwidth = width*2;
-	# 		newminvals = (minvals - minvals/2).astype(int); 
-	# 		newmaxvals = minvals + [newheight,newwidth];
-			
-	# 		print newminvals;
-	# 		print newmaxvals;
-			
-	# 		scaledxmin = newminvals[0]; 
-	# 		scaledymin = newminvals[1]; 
-	# 		scaledxmax = newmaxvals[0]; 
-	# 		scaledymax = newmaxvals[1]; 
-	# 		#contours, hierarchy = cv2.findContours(dat,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE);
-	# 		#bBox = cv2.boundingRect(contours[0]);	
-	# 		#cv2.rectangle(eyellipse,(minvals[1],minvals[0]),\
-	# 		#	(maxvals[1],maxvals[0]),20);
-	# 		cv2.imshow("eyellipse",eyellipse);
-	
 
 	#######################################################
 	# CALIBRATION						
@@ -1089,7 +814,7 @@ while True:
 					eyepts_initialized = True;
 
 			# If enough data collected, run calibration routine
-			if eyepts is not None and len(eyepts) > 30:
+			if eyepts is not None and len(eyepts) > 200:
 				done = True
 				print "worldpts";
 				print worldpts;
@@ -1111,9 +836,6 @@ while True:
 		print PersonModel.isFaceGazing(gazept,faceRects);
 		cv2.circle(frames['worldColor'], tuple(gazept),GAZE_RADIUS*2, (255, 100, 255), 5);
 	
-	# detect skin color
-	# skinhist = np.zeros((256,256));
-	
 	cv2.imshow('TheWorld',frames['worldColor']);
 
 	#######################################################
@@ -1122,21 +844,18 @@ while True:
 	#######################################################
 
 	# Display Blurred Image Used in Thresholding
-	# cv2.imshow("Blurred",blurred1);
+	#cv2.imshow("Blurred",blurred1);
 
 	# Display Histogram to Diagnose Skewed Distribution
-	# disp.drawHistogram(blurred1, False);
+	#disp.drawHistogram(blurred1, False);
 
 	# Display Thresholded Image
-	# cv2.imshow('Thresholded',threshed);
+	#cv2.imshow('Thresholded',threshed);
 
 	# Display Edges
-	# cv2.imshow("CannyEdgeDetector",edges);
+	#cv2.imshow("CannyEdgeDetector",edges);
 
 	# Display Hough Circles
-	# cv2.imshow("HoughCircles",houghCircleFrame);
-
-	# Display GoodFeaturesToTrack
-	# cv2.imshow('GoodFeatures', featureFrame);
+	#cv2.imshow("HoughCircles",houghCircleFrame);
 
 #cProfile.run('main()','profile.o','cumtime');
