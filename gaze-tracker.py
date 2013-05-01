@@ -179,13 +179,12 @@ class FaceDetector:
 		return rects;
 		#return rects/FACE_SCALE;
 	
-	def classifyEyes(self,img,bBox):
+	def classifyEyes(self,img):
 		"""Run Eyes Cascade Classifier on Image"""
-		EYE_MIN_SIZE = 0.15;
-		bBoxScaled = bBox*EYE_SCALE;
-		eyesROI = img[bBoxScaled[1]:bBoxScaled[3], bBoxScaled[0]:bBoxScaled[2]];
+		EYE_MIN_SIZE = 0.2;
+		EYE_SCALE = 0.25;
 		
-		eyesROI = cv2.equalizeHist(eyesROI);
+		eyesROI = cv2.resize(img,None,fx=EYE_SCALE,fy=EYE_SCALE);
 		
 #		print 'eyesROI dimensions: ',eyesROI.shape;
 		minEyeSize = eyesROI.shape[1]*EYE_MIN_SIZE;
@@ -196,12 +195,10 @@ class FaceDetector:
 		
 #		print rectsScaled;
 		# Scale back to full size
-		rects = rectsScaled / EYE_SCALE;
+		rects = rectsScaled #/ EYE_SCALE;
 		
+		print rects;
 		# Loop over each eye
-		for eye in rects:
-			# Adjust coordinates to be in faceRect's coordinate space
-			eye += np.array([bBox[0],bBox[1],bBox[0],bBox[1]]);
 
 		return rects;
 
@@ -557,7 +554,8 @@ class Capture:
 		frames = {
 			'worldColor': scaledWorldColor,
 			'worldBW': scaledWorldBW,
-			'eye': scaledEye
+			'eye': scaledEye#,
+			#'eyeFull':frameEye
 		};
 		
 		return frames;
@@ -748,13 +746,28 @@ while True:
 
 	frames = capture.read();
 
+	#######################################################
+	# FACE DETECTION
+	#######################################################
 	faceRects = detector.detect(frames);
 	bodyRects = PersonModel.getBodyRects(faceRects);
 
 	Display.drawBodies(frames['worldColor'],faceRects,bodyRects);
 
 	#######################################################
-	# THRESHOLDING #
+	# EYE DETECTION
+	#######################################################
+	# eyeRects = detector.classifyEyes(frames['eyeFull']);
+
+	# if len(eyeRects) > 0:
+	# 	cascadeEye = np.copy(frames['eyeFull']);
+	# 	cascadeEye = cv2.resize(cascadeEye,None,fx=0.25,fy=0.25);
+	# 	Display.drawRectangle(cascadeEye,eyeRects[0],(255,0,0));
+	# 	cv2.imshow('eyedetector',cascadeEye);
+
+
+	#######################################################
+	# THRESHOLDING
 	#######################################################
 
 	# Blur image, eliminating high spatial frequency dark spots
@@ -835,7 +848,7 @@ while True:
 					eyepts_initialized = True;
 
 			# If enough data collected, run calibration routine
-			if eyepts is not None and len(eyepts) > 10:
+			if eyepts is not None and len(eyepts) > 100:
 				start_time = time.time();
 				fp = open('workfile', 'w');
 				string = 'start time: ' + \
