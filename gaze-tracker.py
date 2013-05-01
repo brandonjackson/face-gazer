@@ -798,7 +798,7 @@ while True:
 
 		# If ellipse too big, toss it out!
 		if ellipseBox[1][0] > 50 or ellipseBox[1][1] > 50:
-			print 'Warning: Ellipse Too Big, Dropping Frame.'
+			print 'Warning: Ellipse Too Big, Dropping Frame. Adjust eye camera.'
 			continue;
 
 		eBox = tuple([tuple([ellipseBox[0][1],ellipseBox[0][0]]),\
