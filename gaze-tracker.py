@@ -374,7 +374,7 @@ class PersonModel:
 	@staticmethod
 	def isFaceGazing(gaze,faceRects):
 		if len(faceRects) is 0:
-			return False;
+			return False, -1;
 
 		distances = np.zeros((len(faceRects),1));
 		i = 0;
@@ -387,7 +387,7 @@ class PersonModel:
 
 		print distances.flatten();
 
-		return minDistance < 100;
+		return minDistance < 100, minDistance;
 
 	@staticmethod
 	def getBodyRects(faceRects):
@@ -835,8 +835,14 @@ while True:
 					eyepts_initialized = True;
 
 			# If enough data collected, run calibration routine
-			if eyepts is not None and len(eyepts) > 200:
-				done = True
+			if eyepts is not None and len(eyepts) > 10:
+				start_time = time.time();
+				fp = open('workfile', 'w');
+				string = 'start time: ' + \
+					str(start_time) + '\n';
+				fp.write(string);
+				fp.write('Time from start\tIs gazing?\tMinDistance\n');
+				done = True;
 				print "worldpts";
 				print worldpts;
 				print "eyepts";	
@@ -853,8 +859,10 @@ while True:
 	if done == True:
 		gazept = getWorldCoords(center, xcoeff, ycoeff);
 		gazept = np.around(np.asarray(gazept, dtype=np.int32));
-		# print gazept;
-		print PersonModel.isFaceGazing(gazept,faceRects);
+		isgazing, gazedist = PersonModel.isFaceGazing(gazept,faceRects);
+		print isgazing;
+		timediff = time.time() - start_time;
+		fp.write(str(timediff) + '\t' + str(isgazing) + '\t' + str(gazedist)+'\n');
 		cv2.circle(frames['worldColor'], tuple(gazept),GAZE_RADIUS*2, (255, 100, 255), 5);
 	
 	cv2.imshow('TheWorld',frames['worldColor']);
